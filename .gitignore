@@ -3,4 +3,6 @@ outputs
 outputs/checkpoints/*
 outputs/
 src/__pycache__/*
-*.__pycache__
+*.pyc
+__pycache__/
+*.pt
