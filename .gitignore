@@ -2,3 +2,5 @@ data/*
 outputs
 outputs/checkpoints/*
 outputs/
+src/__pycache__/*
+*.__pycache__

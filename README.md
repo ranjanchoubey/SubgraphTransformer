@@ -64,6 +64,7 @@ The Cora dataset will be automatically downloaded and processed when you run the
 
 ### Running the Pipeline
 
-To run the entire pipeline, execute the [main.py](http://_vscodecontentref_/10) script:
+To run the entire pipeline, execute the [main.py](http://_vscodecontentref_/6) script:
 ```sh
 python main.py
+```
