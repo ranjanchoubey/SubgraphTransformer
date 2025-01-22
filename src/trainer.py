@@ -25,23 +25,27 @@ def train_model(model, dataloader, num_epochs=10, learning_rate=0.001):
 
         # Training loop
         for batch in tqdm(dataloader, desc=f"Epoch {epoch + 1}/{num_epochs}"):
-            token_embeddings, lpe_embeddings, labels = batch
+            subgraph_embeddings, lpe_embeddings, labels = batch
 
             # Move to GPU if available
             if torch.cuda.is_available():
-                token_embeddings = token_embeddings.cuda()
+                subgraph_embeddings = subgraph_embeddings.cuda()
                 lpe_embeddings = lpe_embeddings.cuda()
                 labels = labels.cuda()
                 model = model.cuda()
 
+            # print(f"Subgraph Embeddings Shape: {subgraph_embeddings.shape}")
+            # print(f"LPE Embeddings Shape: {lpe_embeddings.shape}")
+            # print(f"Labels Shape: {labels.shape}")
+
             # Forward pass
-            outputs = model(token_embeddings, lpe_embeddings)
-            loss = criterion(outputs, labels)
+            outputs = model(subgraph_embeddings, lpe_embeddings)  # Shape: [batch_size, num_classes]
+            # print(f"Model Outputs Shape: {outputs.shape}")
+            loss = criterion(outputs, labels)  # Node-level loss
             
             # Backward pass and optimization
             optimizer.zero_grad()
-            # print("Backward pass")
-            loss.backward(retain_graph=True)
+            loss.backward()
             optimizer.step()
 
             # Update loss and accuracy
@@ -70,18 +74,24 @@ def evaluate_model(model, dataloader):
 
     with torch.no_grad():
         for batch in dataloader:
-            token_embeddings, lpe_embeddings, labels = batch
+            subgraph_embeddings, lpe_embeddings, labels = batch
 
             if torch.cuda.is_available():
-                token_embeddings = token_embeddings.cuda()
+                subgraph_embeddings = subgraph_embeddings.cuda()
                 lpe_embeddings = lpe_embeddings.cuda()
                 labels = labels.cuda()
                 model = model.cuda()
 
-            outputs = model(token_embeddings, lpe_embeddings)
+            # print(f"Subgraph Embeddings Shape: {subgraph_embeddings.shape}")
+            # print(f"LPE Embeddings Shape: {lpe_embeddings.shape}")
+            # print(f"Labels Shape: {labels.shape}")
+
+            outputs = model(subgraph_embeddings, lpe_embeddings)  # Shape: [batch_size, num_classes]
+            # print(f"Model Outputs Shape: {outputs.shape}")
             _, predicted = torch.max(outputs, 1)
             correct += (predicted == labels).sum().item()
             total += labels.size(0)
 
-    accuracy = correct / total
+    accuracy = 100 * correct / total
+    print(f"Test Accuracy: {accuracy:.2f}%")
     return accuracy

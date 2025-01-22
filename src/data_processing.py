@@ -40,7 +40,7 @@ def main():
     
     for i in range(num_parts):
         subgraph = cluster_data[i]
-        print("subgraph {} Size : ",i,subgraph)
+        # print("subgraph {} Size : ",i,subgraph)
 
 if __name__ == "__main__":
     main()

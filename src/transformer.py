@@ -1,61 +1,64 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
+from src.transformer_encoder import TransformerEncoder
 
 class GraphTransformer(nn.Module):
-    def __init__(self, input_dim, embed_dim=16, num_heads=4, num_layers=2, dropout=0.1, num_classes=7):
+    def __init__(self, input_dim, embed_dim=16, num_heads=4, ff_dim=64, num_layers=2, dropout=0.1, num_classes=7):
         """
-        Graph Transformer model for node classification.
+        Graph Transformer model for subgraph classification.
         Args:
             input_dim: Input feature size (e.g., 1433 for Cora).
             embed_dim: Size of the embedding dimension.
             num_heads: Number of attention heads.
+            ff_dim: Feed-forward network dimension.
             num_layers: Number of transformer encoder layers.
             dropout: Dropout rate.
             num_classes: Number of classes for classification.
         """
         super(GraphTransformer, self).__init__()
         
-        # Adjust input projection layer to accommodate concatenated input
-        # self.input_proj = nn.Linear(input_dim, embed_dim)
+        # Adjust input projection layer to accommodate input_dim
+        self.input_proj = nn.Linear(input_dim, embed_dim)
 
-        # Transformer encoder layers
-        encoder_layer = nn.TransformerEncoderLayer(
-            d_model=embed_dim,
-            nhead=num_heads,
-            dropout=dropout,
-            batch_first=True  # Ensures inputs are (batch, seq_len, embed_dim)
-        )
-        self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
+        # Custom transformer encoder layers
+        self.transformer = TransformerEncoder(embed_dim, num_heads, ff_dim, num_layers, dropout)
         
         # Classification head
         self.classifier = nn.Linear(embed_dim, num_classes)
         self.dropout = nn.Dropout(dropout)
 
-    def forward(self, token_embedding, lpe_embedding):
+    def forward(self, subgraph_embedding, lpe_embedding):
         """
         Forward pass of the transformer.
         Args:
-            token_embedding: [batch_size, input_dim]
-            lpe_embedding: [batch_size, lpe_dim]
+            subgraph_embedding: [batch_size, embed_dim]
+            lpe_embedding: [batch_size, embed_dim]
         Returns:
             logits: [batch_size, num_classes]
         """
-        # Concatenate token embedding and LPE
-        # x = torch.cat([token_embedding, lpe_embedding], dim=1)  # Shape: [batch_size, input_dim + lpe_dim]
-        # x = self.input_proj(x)  # Project to embedding dimension
-        # Add token embedding and LPE
-        x = token_embedding + lpe_embedding  # Shape: [batch_size, input_dim]
+        # Ensure input tensors have the correct shape
+        if subgraph_embedding.dim() == 1:
+            subgraph_embedding = subgraph_embedding.unsqueeze(0)
+        if lpe_embedding.dim() == 1:
+            lpe_embedding = lpe_embedding.unsqueeze(0)
 
+        print(f"Subgraph Embedding Shape: {subgraph_embedding.shape}")
+        print(f"LPE Embedding Shape: {lpe_embedding.shape}")
+
+        # Project subgraph embeddings to the embedding dimension
+        subgraph_embedding = self.input_proj(subgraph_embedding)  # Shape: [batch_size, embed_dim]
         
-        # Add a sequence length dimension for transformer (sequence length = 1 in our case)
-        x = x.unsqueeze(1)  # Shape: [batch_size, 1, embed_dim]
-        
+        # Add subgraph embedding and LPE
+        x = subgraph_embedding + lpe_embedding  # Shape: [batch_size, embed_dim]
+        print(f"Combined Embedding Shape: {x.shape}")
+
         # Transformer forward pass
-        x = self.transformer(x)  # Shape: [batch_size, 1, embed_dim]
-        x = x.squeeze(1)  # Shape: [batch_size, embed_dim]
-        
+        x = self.transformer(x.unsqueeze(1)).squeeze(1)  # Shape: [batch_size, embed_dim]
+        print(f"Transformer Output Shape: {x.shape}")
+
         # Classification
         x = self.dropout(x)
         logits = self.classifier(x)  # Shape: [batch_size, num_classes]
+        print(f"Logits Shape: {logits.shape}")
+
         return logits
