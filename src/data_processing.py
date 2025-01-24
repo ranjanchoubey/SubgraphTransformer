@@ -25,22 +25,4 @@ def partition_graph(graph, num_parts=10):
     print(f"Graph partitioned into {num_parts} subgraphs.")
     return cluster_data
 
-# Example usage in main.py: check uncomment below code to check this data_processing.py
-def main():
-    # Step 1: Load the Cora dataset
-    print("Loading Cora dataset...")
-    graph = load_cora_data()  # Returns the full graph
-    print(f"Graph Info:\nNodes: {graph.num_nodes}, Edges: {graph.num_edges}, Features: {graph.num_node_features}")
 
-    # Step 2: Partition the graph into subgraphs
-    print("\nPartitioning the graph...")
-    num_parts = 100  # Number of subgraphs
-    cluster_data = partition_graph(graph, num_parts=num_parts)
-    print(f"Partitioning completed. Number of subgraphs: {len(cluster_data)}")
-    
-    for i in range(num_parts):
-        subgraph = cluster_data[i]
-        # print("subgraph {} Size : ",i,subgraph)
-
-if __name__ == "__main__":
-    main()

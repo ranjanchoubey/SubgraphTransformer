@@ -1,0 +1,21 @@
+model:
+  input_dim: 16
+  embed_dim: 32
+  num_heads: 8
+  num_layers: 4
+  ff_dim: 128
+  dropout: 0.1
+  num_classes: 7
+
+training:
+  num_epochs: 500
+  learning_rate: 0.001
+  weight_decay: 1e-5
+  batch_size: -1  # Full batch
+  early_stopping_patience: 50
+
+data:
+  num_partitions: 100
+  dataset: "cora"
+  gcn_hidden_dim: 64
+  lpe_dim: 16
