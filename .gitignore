@@ -1,3 +1,6 @@
+data/
+notebook/data/
+*/data/
 outputs
 outputs/checkpoints/*
 outputs/
