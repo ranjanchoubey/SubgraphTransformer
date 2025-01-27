@@ -36,24 +36,9 @@ class NodeLevelDataset(Dataset):
     def __init__(self, subgraph_embeddings, lpe_embeddings, node_labels, num_nodes_list, mask):
         self.subgraph_embeddings = subgraph_embeddings
         self.lpe_embeddings = lpe_embeddings
+        self.node_labels = node_labels
         self.num_nodes_list = num_nodes_list
-        
-        # Convert node labels to subgraph labels by taking mode of masked nodes
-        self.subgraph_labels = []
-        start_idx = 0
-        for num_nodes in num_nodes_list:
-            end_idx = start_idx + num_nodes
-            # Get labels for masked nodes in this subgraph
-            masked_labels = node_labels[start_idx:end_idx][mask[start_idx:end_idx]]
-            if len(masked_labels) > 0:
-                # Most frequent label in the masked nodes becomes the subgraph label
-                subgraph_label = torch.mode(masked_labels)[0]
-            else:
-                # If no masked nodes in subgraph, use the first label (or any default)
-                subgraph_label = torch.tensor(0)
-            self.subgraph_labels.append(subgraph_label)
-            start_idx = end_idx
-        self.subgraph_labels = torch.stack(self.subgraph_labels)
+        self.mask = mask
 
     def __len__(self):
         return len(self.subgraph_embeddings)
@@ -62,7 +47,8 @@ class NodeLevelDataset(Dataset):
         return (
             self.subgraph_embeddings[idx],
             self.lpe_embeddings[idx],
-            self.subgraph_labels[idx],
+
+            self.node_labels[idx],  # Return original node labels
             self.num_nodes_list[idx]
         )
 
@@ -121,7 +107,7 @@ def main():
     print(f"Graph Info:\nNodes: {graph.num_nodes}, Edges: {graph.num_edges}, Features: {graph.num_node_features}")
 
     # Step 2: Partition the graph into subgraphs
-    num_parts = 80  # More partitions for larger training set
+    num_parts = 100  # More partitions for larger training set
     cluster_data = partition_graph(graph, num_parts=num_parts)
 
     # Step 3: Compute embeddings and track mask information
@@ -243,7 +229,7 @@ def main():
         model=model, 
         train_dataloader=train_dataloader, 
         val_dataloader=val_dataloader, 
-        num_epochs=500,
+        num_epochs=2,
         learning_rate=0.001
     )
     print("\nFinal Training Metrics:")
