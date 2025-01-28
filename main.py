@@ -7,246 +7,139 @@ from src.data_processing import load_cora_data, partition_graph
 from src.embedding import mean_pooling, compute_laplacian_positional_embedding, compute_gcn_embeddings
 from src.transformer import GraphTransformer
 from src.trainer import train_model, evaluate_model
-
-def set_seed(seed):
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed(seed)
-        torch.cuda.manual_seed_all(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
-
-class NodeLevelDataset(Dataset):
-    """
-    Custom dataset for handling subgraph-based node classification.
-    
-    Key Features:
-    - Maintains mapping between subgraphs and nodes
-    - Handles mask-based data splitting
-    - Computes subgraph labels from node labels
-    
-    Process:
-    1. Takes subgraph embeddings and node labels
-    2. Computes subgraph labels using mode of node labels
-    3. Maintains mapping for label propagation
-    4. Handles masked node selection for train/val/test splits
-    """
-    def __init__(self, subgraph_embeddings, lpe_embeddings, node_labels, num_nodes_list, mask):
-        self.subgraph_embeddings = subgraph_embeddings
-        self.lpe_embeddings = lpe_embeddings
-        self.node_labels = node_labels
-        self.num_nodes_list = num_nodes_list
-        self.mask = mask
-
-    def __len__(self):
-        return len(self.subgraph_embeddings)
-
-    def __getitem__(self, idx):
-        return (
-            self.subgraph_embeddings[idx],
-            self.lpe_embeddings[idx],
-
-            self.node_labels[idx],  # Return original node labels
-            self.num_nodes_list[idx]
-        )
-
-def custom_collate_fn(batch):
-    """
-    Custom collation function for batching subgraph data.
-    
-    Features:
-    - Handles variable-sized subgraphs
-    - Stacks embeddings and labels properly
-    - Maintains node count information
-    
-    Process:
-    1. Collects batch elements
-    2. Stacks embeddings and labels
-    3. Converts node counts to tensor
-    """
-    subgraph_embeddings, lpe_embeddings, labels, num_nodes = zip(*batch)
-    subgraph_embeddings = torch.stack(subgraph_embeddings)
-    lpe_embeddings = torch.stack(lpe_embeddings)
-    labels = torch.stack(labels)  # Changed to handle subgraph-level labels
-    num_nodes = torch.tensor(num_nodes)
-    return subgraph_embeddings, lpe_embeddings, labels, num_nodes
+from src.utils import set_seed
+from src.config import load_config
 
 def main():
-    """
-    Main execution function implementing the complete pipeline.
-    
-    Pipeline Steps:
-    1. Data Loading and Preprocessing:
-       - Loads Cora dataset
-       - Partitions graph into subgraphs
-       - Computes embeddings and masks
-    
-    2. Dataset Creation:
-       - Creates train/val/test datasets
-       - Handles mask-based splitting
-       - Sets up data loaders
-    
-    3. Model Training:
-       - Initializes GraphTransformer
-       - Trains with validation monitoring
-       - Tracks multiple metrics
-    
-    4. Evaluation:
-       - Evaluates on validation set
-       - Performs final test set evaluation
-       - Reports comprehensive metrics
-    """
-    # Set the seed for reproducibility
-    set_seed(42)
+    print("\n" + "="*50)
+    print("Step 1: Loading Configuration")
+    print("="*50)
+    config = load_config('config/default_config.yaml')
+    set_seed(config.training.seed)
+    print("✓ Configuration loaded successfully")
 
-    # Step 1: Load the Cora dataset
-    print("Loading Cora dataset...")
-    graph = load_cora_data()
-    print(f"Graph Info:\nNodes: {graph.num_nodes}, Edges: {graph.num_edges}, Features: {graph.num_node_features}")
+    print("\n" + "="*50)
+    print("Step 2: Loading Cora Dataset")
+    print("="*50)
+    graph = load_cora_data(config.data.data_path)
+    print("✓ Dataset loaded successfully")
 
-    # Step 2: Partition the graph into subgraphs
-    num_parts = 100  # More partitions for larger training set
-    cluster_data = partition_graph(graph, num_parts=num_parts)
+    print("\n" + "="*50)
+    print("Step 3: Partitioning Graph")
+    print("="*50)
+    cluster_data = partition_graph(graph, num_parts=config.data.num_parts)
+    print(f"✓ Graph partitioned into {config.data.num_parts} subgraphs")
 
-    # Step 3: Compute embeddings and track mask information
+    print("\n" + "="*50)
+    print("Step 4: Computing Embeddings")
+    print("="*50)
     subgraph_embeddings = []
     lpe_embeddings = []
     node_labels = []
-    num_nodes_list = []
-    train_masks = []
-    val_masks = []
-    test_masks = []
+    node_counts = []  
+    
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(f"✓ Using device: {device}")
+    
+    node_indices = []
+    start_idx = 0
 
-    for i in range(num_parts):
+    # Get masks directly from the original graph
+    train_mask = graph.train_mask.to(device)
+    val_mask = graph.val_mask.to(device)
+    test_mask = graph.test_mask.to(device)
+
+    for i in range(config.data.num_parts):
         subgraph = cluster_data[i]
-        print("="*100)
-        print(f"Subgraph {i} - Number of nodes: {subgraph.num_nodes}")
-        print(f"Subgraph {i} - Feature vector size: {subgraph.x.size(1)}")
+        num_nodes = subgraph.num_nodes
+        node_indices.append(torch.arange(start_idx, start_idx + num_nodes, device=device))
+        start_idx += num_nodes
         
-        # Compute GCN embeddings
-        gcn_embeddings = compute_gcn_embeddings(subgraph, input_dim=1433, hidden_dim=64, output_dim=16)
-        
-        # Compute Laplacian positional embeddings
-        lpe = compute_laplacian_positional_embedding(subgraph, embedding_dim=16)
-        
-        # Compute subgraph-level embeddings using mean pooling
+        # Update GCN embedding computation with config values
+        gcn_embeddings = compute_gcn_embeddings(
+            subgraph, 
+            input_dim=1433,  # Original Cora feature dimension
+            hidden_dim=config.model.hidden_dim,
+            output_dim=config.model.output_dim
+        )
+        lpe = compute_laplacian_positional_embedding(subgraph, embedding_dim=config.model.embed_dim)
         subgraph_embedding = mean_pooling(gcn_embeddings)
         
-        # Append subgraph-level embeddings and labels
         subgraph_embeddings.append(subgraph_embedding)
-        lpe_embeddings.append(lpe.mean(dim=0))  # Mean pooling for LPE as well
+        lpe_embeddings.append(lpe.mean(dim=0))
         node_labels.append(subgraph.y)
-        num_nodes_list.append(subgraph.num_nodes)
+        # `node_counts` is a list that stores the number of nodes in each subgraph. It is used to keep
+        # track of the number of nodes in each partitioned subgraph of the original graph. This
+        # information is important for various computations and operations within the code, such as
+        # computing embeddings, handling masks, and ensuring consistency in the sizes of tensors
+        # during processing.
+        node_counts.append(subgraph.num_nodes)  # Changed from num_nodes_list
 
-        # Store the masks for each subgraph
-        train_masks.append(subgraph.train_mask)
-        val_masks.append(subgraph.val_mask)
-        test_masks.append(subgraph.test_mask)
+        if i % 20 == 0:
+            print(f"✓ Processed {i}/{config.data.num_parts} subgraphs")
 
-        # Debugging prints to check tensor sizes
-        print(f"Subgraph {i} - GCN Embeddings Size: {gcn_embeddings.size()}")
-        print(f"Subgraph {i} - LPE Size: {lpe.size()}")
-        print(f"Subgraph {i} - Subgraph Embedding Size: {subgraph_embedding.size()}")
-        print(f"Subgraph {i} - Node Labels Size: {subgraph.y.size()}")
-        print("="*100)
+    subgraph_embeddings = torch.stack(subgraph_embeddings).to(device)
+    lpe_embeddings = torch.stack(lpe_embeddings).to(device)
+    node_labels = torch.cat(node_labels, dim=0).to(device)
+    node_counts = torch.tensor(node_counts).to(device)  # Changed from num_nodes_list
 
-    subgraph_embeddings = torch.stack(subgraph_embeddings)
-    lpe_embeddings = torch.stack(lpe_embeddings)
-    node_labels = torch.cat(node_labels, dim=0)
-    num_nodes_list = torch.tensor(num_nodes_list)
-
-    # Stack all tensors
-    train_mask = torch.cat(train_masks)
-    val_mask = torch.cat(val_masks)
-    test_mask = torch.cat(test_masks)
-
-    # Debugging prints to check tensor sizes
     print(f"Subgraph Embeddings Size: {subgraph_embeddings.size()}")
     print(f"LPE Embeddings Size: {lpe_embeddings.size()}")
     print(f"Node Labels Size: {node_labels.size()}")
-    print(f"Num Nodes List Size: {num_nodes_list.size()}")
 
-    # Ensure all tensors have the same first dimension
-    assert subgraph_embeddings.size(0) == lpe_embeddings.size(0) == num_nodes_list.size(0), "Size mismatch between tensors"
+    assert subgraph_embeddings.size(0) == lpe_embeddings.size(0) == node_counts.size(0), "Size mismatch between tensors"
 
-    # Create datasets using masks
-    train_dataset = NodeLevelDataset(
-        subgraph_embeddings,
-        lpe_embeddings,
-        node_labels,
-        num_nodes_list,
-        train_mask
-    )
-    
-    val_dataset = NodeLevelDataset(
-        subgraph_embeddings,
-        lpe_embeddings,
-        node_labels,
-        num_nodes_list,
-        val_mask
-    )
-    
-    test_dataset = NodeLevelDataset(
-        subgraph_embeddings,
-        lpe_embeddings,
-        node_labels,
-        num_nodes_list,
-        test_mask
-    )
+    print("\n" + "="*50)
+    print("Step 5: Model Initialization")
+    print("="*50)
+    model = GraphTransformer(
+        input_dim=config.model.output_dim,  # This should match GCN output_dim
+        embed_dim=config.model.embed_dim,
+        num_heads=config.model.num_heads,
+        num_layers=config.model.num_layers,
+        ff_dim=config.model.ff_dim,
+        dropout=config.model.dropout,
+        num_classes=config.model.num_classes
+    ).to(device)
+    print("✓ Model initialized successfully")
 
-    # Create dataloaders
-    train_dataloader = DataLoader(
-        train_dataset, 
-        batch_size=len(train_dataset),
-        shuffle=False,
-        collate_fn=custom_collate_fn
-    )
-    
-    val_dataloader = DataLoader(
-        val_dataset,
-        batch_size=len(val_dataset),
-        shuffle=False,
-        collate_fn=custom_collate_fn
-    )
-    
-    test_dataloader = DataLoader(
-        test_dataset,
-        batch_size=len(test_dataset),
-        shuffle=False,
-        collate_fn=custom_collate_fn
-    )
-
-    print(f"Number of nodes in train/val/test: {train_mask.sum()}/{val_mask.sum()}/{test_mask.sum()}")
-
-    # Step 4: Initialize and train the model
-    input_dim = 16  # Fixed embedding size
-    model = GraphTransformer(input_dim=input_dim, embed_dim=16, num_heads=16, num_layers=8, ff_dim=64, dropout=0.1, num_classes=7)
-    
-    # Train the model
+    print("\n" + "="*50)
+    print("Step 6: Training Phase")
+    print("="*50)
     train_metrics = train_model(
-        model=model, 
-        train_dataloader=train_dataloader, 
-        val_dataloader=val_dataloader, 
-        num_epochs=2,
-        learning_rate=0.001
+        model=model,
+        subgraph_embeddings=subgraph_embeddings,
+        lpe_embeddings=lpe_embeddings,
+        node_labels=node_labels,
+        node_counts=node_counts,
+        train_mask=train_mask,
+        val_mask=val_mask,  # Add validation mask
+        node_indices=node_indices,
+        num_epochs=config.training.num_epochs,
+        learning_rate=config.training.learning_rate
     )
-    print("\nFinal Training Metrics:")
-    for metric, value in train_metrics.items():
-        print(f"{metric}: {value:.2f}%")
 
-    # Evaluate on validation set
-    val_metrics = evaluate_model(model, val_dataloader)
-    print("\nValidation Metrics:")
-    for metric, value in val_metrics.items():
-        print(f"{metric}: {value:.2f}%")
-
-    # Final evaluation on test set
-    test_metrics = evaluate_model(model, test_dataloader)
-    print("\nTest Metrics:")
+    print("\n" + "="*50)
+    print("Step 7: Final Evaluation")
+    print("="*50)
+    
+    # Only run test set evaluation at the very end
+    print("\n📊 Test Set Performance:")
+    test_metrics = evaluate_model(
+        model=model,
+        subgraph_embeddings=subgraph_embeddings,
+        lpe_embeddings=lpe_embeddings,
+        node_labels=node_labels,
+        node_counts=node_counts,
+        mask=test_mask,
+        node_indices=node_indices
+    )
     for metric, value in test_metrics.items():
-        print(f"{metric}: {value:.2f}%")
+        print(f"✓ {metric}: {value:.2f}%")
+
+    print("\n" + "="*50)
+    print("🎉 Completed !")
+    print("="*50)
 
 if __name__ == "__main__":
     main()

@@ -62,6 +62,16 @@ class MultiHeadAttention(nn.Module):
         q, k, v = qkv.chunk(3, dim=-1)
 
         attn_weights = (q @ k.transpose(-2, -1)) * self.scale
+        
+        # More user-friendly print format
+        # print("\n📊 Attention Matrix Analysis:")
+        # print("═══════════════════════════")
+        # print(f"🔹 Batch Processing: {attn_weights.size(0)} samples")
+        # print(f"🔹 Attention Heads: {attn_weights.size(1)}")
+        # print(f"🔹 Sequence Length: {attn_weights.size(2)} x {attn_weights.size(3)}")
+        # print(f"🔹 Total Parameters: {attn_weights.numel():,}")
+        # print("═══════════════════════════")
+
         attn_weights = F.softmax(attn_weights, dim=-1)
         attn_weights = self.dropout(attn_weights)
 

@@ -1,7 +1,7 @@
 import torch
 from torch_geometric.utils import to_dense_adj, to_dense_batch
 from torch.linalg import eigh
-from src.gcn import GCN  # Ensure GCN is imported correctly
+from src.gcn import GCN  
 
 def mean_pooling(embeddings):
     """
@@ -13,6 +13,7 @@ def mean_pooling(embeddings):
     """
     token_embedding = torch.mean(embeddings, dim=0)  # Mean pooling over nodes
     return token_embedding
+
 
 def compute_laplacian_positional_embedding(subgraph, embedding_dim=16):
     """
@@ -29,6 +30,7 @@ def compute_laplacian_positional_embedding(subgraph, embedding_dim=16):
     eigvals, eigvecs = eigh(L)
     lpe = eigvecs[:, :embedding_dim]
     return lpe
+
 
 def compute_gcn_embeddings(subgraph, input_dim, hidden_dim, output_dim):
     """

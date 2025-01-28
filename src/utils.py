@@ -2,6 +2,8 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+import random
+from sklearn.metrics import f1_score, accuracy_score
 
 
 def visualize_graph(graph):
@@ -122,3 +124,36 @@ def visualize_subgraphs(cluster_data, num_plots=10):
     
     plt.tight_layout(pad=3.0)
     plt.show()
+
+
+def set_seed(seed):
+    """Set random seeds for reproducibility."""
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
+def calculate_metrics(y_true, y_pred):
+    """Calculate accuracy and macro-F1 score."""
+    accuracy = accuracy_score(y_true, y_pred)
+    f1_macro = f1_score(y_true, y_pred, average='macro', zero_division=0)
+    
+    return {
+        'accuracy': 100. * accuracy,
+        'f1_macro': 100. * f1_macro
+    }
+
+def print_metrics(metrics, prefix=""):
+    """Print metrics in a standard format."""
+    print(f"\n{prefix}:")
+    print(f"  Accuracy: {metrics['accuracy']:.2f}%")
+    print(f"  Macro-F1: {metrics['f1_macro']:.2f}%")
+
+def calculate_masked_metrics(predictions, true_labels):
+    """Calculate metrics for masked nodes."""
+    _, predicted_classes = predictions.max(1)
+    return calculate_metrics(true_labels.cpu().numpy(), predicted_classes.cpu().numpy())

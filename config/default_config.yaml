@@ -1,0 +1,22 @@
+data:
+  dataset_name: 'Cora'
+  data_path: 'data/cora/'
+  num_parts: 50  # Reduced from 100 to create larger, more meaningful subgraphs
+  input_dim: 1433  # Original Cora feature dimension
+
+model:
+  embed_dim: 32  # Increased from 16 to capture more complex features
+  num_heads: 4   # Reduced from 16 to prevent overfitting
+  num_layers: 2  # Kept small to prevent overfitting
+  ff_dim: 128    # Increased for better feature transformation
+  dropout: 0.3   # Increased from 0.1 for stronger regularization
+  num_classes: 7
+  hidden_dim: 128  # Increased GCN hidden dimension
+  output_dim: 32   # Matched with embed_dim
+
+training:
+  num_epochs: 200  # Increased to allow better convergence
+  learning_rate: 0.0005  # Reduced for more stable training
+  weight_decay: 0.01  # Added L2 regularization
+  patience: 20  # Early stopping patience
+  seed: 42
