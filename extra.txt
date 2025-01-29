@@ -1,0 +1,20 @@
+OLD: /ranjan/GT/src/nets/graph_transformer_net.py
+NEW: /ranjan/GT/src/nets/transformer.py
+
+OLD: /ranjan/GT/src/layers/graph_transformer_layer.py
+NEW: /ranjan/GT/src/nets/transformer_encoder.py (imported by transformer.py)
+
+OLD: Part of graph_transformer_net.py
+NEW: /ranjan/GT/src/data/embedding.py (Separated embedding functionality)
+
+OLD: Mixed in main.py
+NEW: /ranjan/GT/src/train/trainer.py (Dedicated trainer module)
+
+
+OLD: Old config spread across multiple files
+NEW: /ranjan/GT/src/configs/default_config.json (Centralized configuration)
+
+
+
+OLD: /ranjan/GT/src/layers/graph_transformer_layer.py
+NEW: Functionality moved to transformer_encoder.py

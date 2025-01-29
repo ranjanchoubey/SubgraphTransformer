@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import random
+import torch.nn.functional as F
 from sklearn.metrics import f1_score, accuracy_score
 
 
@@ -140,11 +141,10 @@ def set_seed(seed):
 def calculate_metrics(y_true, y_pred):
     """Calculate accuracy and macro-F1 score."""
     accuracy = accuracy_score(y_true, y_pred)
-    f1_macro = f1_score(y_true, y_pred, average='macro', zero_division=0)
+    # f1_macro = f1_score(y_true, y_pred, average='macro', zero_division=0)
     
     return {
-        'accuracy': 100. * accuracy,
-        'f1_macro': 100. * f1_macro
+        'accuracy': 100. * accuracy
     }
 
 def print_metrics(metrics, prefix=""):
@@ -155,5 +155,9 @@ def print_metrics(metrics, prefix=""):
 
 def calculate_masked_metrics(predictions, true_labels):
     """Calculate metrics for masked nodes."""
-    _, predicted_classes = predictions.max(1)
+    # print(",predictions : ",predictions,predictions.shape)
+    predicted_classes = torch.argmax(predictions,dim=1)
+    # print("After predicted_classes : ",predicted_classes,predicted_classes.shape)
+    print()
+    # print("true_labels : ",true_labels,true_labels.shape)
     return calculate_metrics(true_labels.cpu().numpy(), predicted_classes.cpu().numpy())

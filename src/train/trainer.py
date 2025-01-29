@@ -1,72 +1,66 @@
 import torch
 import torch.nn.functional as F
 from src.utils.utils import calculate_metrics, print_metrics, calculate_masked_metrics
-from tqdm import tqdm
+import os
+import time
+from torch.utils.tensorboard import SummaryWriter
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 def train_model(*, model, subgraph_embeddings, lpe_embeddings, node_labels, node_counts, 
                 train_mask, val_mask, node_indices, num_epochs=100, learning_rate=0.001):
     device = next(model.parameters()).device
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=0.01)
+    scheduler = ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=10, verbose=True)
     
     best_val_acc = 0
     best_model_state = None
     best_train_metrics = None
-
-    # Standard progress bar format
-    progress_bar = tqdm(
-        range(num_epochs),
-        desc='Training',
-        ncols=80,
-        leave=True,
-        bar_format='{desc} {n_fmt}/{total_fmt}: {percentage:3.0f}%|{bar}| [{postfix}]'
-    )
-
-    for epoch in progress_bar:
-        # Training phase
+    
+    print(f"Starting training for {num_epochs} epochs...")
+    
+    for epoch in range(num_epochs):
         model.train()
         optimizer.zero_grad()
         
         try:
-            # Get predictions for all nodes
+            # Forward pass
             train_predictions, _ = model(subgraph_embeddings, lpe_embeddings, node_counts, node_indices)
             
-            # Get training predictions and loss
+            # Get masked predictions and compute loss
             train_node_predictions = train_predictions[train_mask]
             train_node_labels = node_labels[train_mask]
-            loss = F.cross_entropy(train_node_predictions, train_node_labels)
             
-            # Backward pass
+            loss = model.loss(train_node_predictions, train_node_labels)  # Use weighted loss
+
+            # Backward pass with gradient clipping
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()
 
-            # Calculate metrics
+            # Validation
             with torch.no_grad():
-                train_metrics = calculate_masked_metrics(train_node_predictions, train_node_labels)
                 val_predictions, _ = model(subgraph_embeddings, lpe_embeddings, node_counts, node_indices)
                 val_node_predictions = val_predictions[val_mask]
                 val_node_labels = node_labels[val_mask]
                 val_metrics = calculate_masked_metrics(val_node_predictions, val_node_labels)
 
-            # Update progress bar with standard format
-            progress_bar.set_postfix_str(
-                f"loss: {loss.item():.4f}, val_acc: {val_metrics['accuracy']:.1f}%"
-            )
+            print(f'Epoch [{epoch+1}/{num_epochs}] Loss: {loss.item():.4f} Val Accuracy: {val_metrics["accuracy"]:.1f}%')
 
-            # Save best model based on validation accuracy
             if val_metrics['accuracy'] > best_val_acc:
                 best_val_acc = val_metrics['accuracy']
                 best_model_state = model.state_dict().copy()
-                best_train_metrics = train_metrics
+                print(f'New best validation accuracy: {best_val_acc:.1f}%')
+
+            # Update learning rate
+            scheduler.step(val_metrics['accuracy'])
 
         except Exception as e:
-            print(f"\nError in train_model: {str(e)}")
-            print(f"Error location: {e.__traceback__.tb_lineno}")
+            print(f"\nError in training: {str(e)}")
             raise e
 
-    # Restore best model
+    print(f"\nTraining completed. Best validation accuracy: {best_val_acc:.1f}%")
     model.load_state_dict(best_model_state)
-    print(f"\nBest validation accuracy: {best_val_acc:.2f}%")
-    return best_train_metrics
+    return {'val_acc': best_val_acc}
 
 def evaluate_model(*, model, subgraph_embeddings, lpe_embeddings, node_labels, node_counts, mask, node_indices):
     """Evaluate model using mask."""
@@ -96,4 +90,3 @@ def evaluate_model(*, model, subgraph_embeddings, lpe_embeddings, node_labels, n
         print(f"    └── Test Accuracy: {metrics['accuracy']:.2f}%")
         
         return metrics
-        

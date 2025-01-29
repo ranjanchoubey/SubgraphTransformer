@@ -1,0 +1,69 @@
+{
+  "gpu": {
+    "use": true,
+    "id": 0
+  },
+  
+  "model": {
+    "name": "GraphTransformer",
+    "hidden_dim": 64,
+    "output_dim": 32,
+    "embed_dim": 16,
+    "num_heads": 4,
+    "num_layers": 2,
+    "ff_dim": 128,
+    "dropout": 0.1,
+    "num_classes": 7
+  },
+  
+  "out_dir": "out/Cora_GraphTransformer/",
+  
+  "params": {
+    "seed": 41,
+    "epochs": 100,
+    "batch_size": 26,
+    "init_lr": 0.0005,
+    "lr_reduce_factor": 0.5,
+    "lr_schedule_patience": 10,
+    "min_lr": 1e-6,
+    "weight_decay": 0.0,
+    "print_epoch_interval": 5,
+    "max_time": 24
+},
+  
+  "gcn": {
+    "input_dim": 1433,
+    "hidden_dim": 64,
+    "output_dim": 16
+  },
+
+  "data": {
+    "data_path": "dataset/",
+    "num_parts": 120
+  },
+
+  "training": {
+    "seed": 42,
+    "num_epochs": 100,
+    "learning_rate": 0.0001
+  },
+
+  "net_params": {
+    "L": 2,
+    "n_heads": 8,
+    "hidden_dim": 64,
+    "out_dim": 64,
+    "edge_feat": true,
+    "residual": true,
+    "readout": "mean",
+    "in_feat_dropout": 0.0,
+    "dropout": 0.0,
+    "layer_norm": false,
+    "batch_norm": true,
+    "self_loop": false,
+    "lap_pos_enc": false,
+    "pos_enc_dim": 8,
+    "wl_pos_enc": true,
+    "full_graph": false
+  }
+}

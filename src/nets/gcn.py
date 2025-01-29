@@ -44,7 +44,6 @@ class GCN(torch.nn.Module):
         Returns:
             Node embeddings [num_nodes, output_dim]
         """
-        x = self.conv1(x, edge_index)
-        x = F.relu(x)
+        x = F.relu(self.conv1(x, edge_index))
         x = self.conv2(x, edge_index)
         return x

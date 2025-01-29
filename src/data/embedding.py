@@ -1,7 +1,7 @@
 import torch
 from torch_geometric.utils import to_dense_adj, to_dense_batch
 from torch.linalg import eigh
-from src.models.gcn import GCN  
+from src.nets.gcn import GCN  
 
 def mean_pooling(embeddings):
     """

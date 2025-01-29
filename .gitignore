@@ -1,7 +1,7 @@
 dataset/
 notebook/data/
 
-outputs
+out/
 outputs/checkpoints/*
 outputs/
 src/__pycache__/*
