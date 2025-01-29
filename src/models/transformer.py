@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from models.transformer_encoder import TransformerEncoder
+from src.models.transformer_encoder import TransformerEncoder
 
 class GraphTransformer(nn.Module):
     """

@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
-from layers.multi_head_attention import MultiHeadAttention
-from layers.feed_forward import FeedForward
+from src.layers.multi_head_attention import MultiHeadAttention
+from src.layers.feed_forward import FeedForward
 
 class TransformerEncoderLayer(nn.Module):
     """

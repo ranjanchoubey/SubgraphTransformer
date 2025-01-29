@@ -3,18 +3,19 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader, Dataset
 from torch.nn.utils.rnn import pad_sequence
-from data.data_processing import load_cora_data, partition_graph
-from data.embedding import mean_pooling, compute_laplacian_positional_embedding, compute_gcn_embeddings
+
+from src.data_preprocessing.data_processing import load_cora_data, partition_graph
+from src.data_preprocessing.embedding import mean_pooling, compute_laplacian_positional_embedding, compute_gcn_embeddings
 from src.models.transformer import GraphTransformer
-from train.trainer import train_model, evaluate_model
-from utils.utils import set_seed
-from config.config import load_config
+from src.train.trainer import train_model, evaluate_model
+from src.utils.utils import set_seed
+from src.config.config import load_config
 
 def main():
     print("\n" + "="*50)
     print("Step 1: Loading Configuration")
     print("="*50)
-    config = load_config('config/default_config.yaml')
+    config = load_config('src/config/default_config.yaml')
     set_seed(config.training.seed)
     print("✓ Configuration loaded successfully")
 

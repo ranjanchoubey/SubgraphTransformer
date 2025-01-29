@@ -1,6 +1,6 @@
 import torch
 import torch.nn.functional as F
-from utils.utils import calculate_metrics, print_metrics, calculate_masked_metrics
+from src.utils.utils import calculate_metrics, print_metrics, calculate_masked_metrics
 from tqdm import tqdm
 
 def train_model(*, model, subgraph_embeddings, lpe_embeddings, node_labels, node_counts, 

@@ -1,8 +1,0 @@
-
-# Same structure as default_config.yaml but with different values
-model:
-  embed_dim: 32
-  num_heads: 8
-  num_layers: 4
-  ff_dim: 128
-  # ...etc...
