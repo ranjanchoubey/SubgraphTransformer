@@ -1,3 +1,6 @@
+import sys
+sys.dont_write_bytecode = True # prevent python to create __pycache__ files
+
 import random
 import numpy as np
 import torch
@@ -11,27 +14,32 @@ from src.train.trainer import train_model, evaluate_model
 from src.utils.utils import set_seed
 from src.config.config import load_config
 
-import sys
-sys.dont_write_bytecode = True
+
 
 def main():
     print("\n" + "="*50)
     print("Step 1: Loading Configuration")
     print("="*50)
+    
     config = load_config('src/config/default_config.yaml')
+    
     set_seed(config.training.seed)
     print("✓ Configuration loaded successfully")
 
     print("\n" + "="*50)
     print("Step 2: Loading Cora Dataset")
     print("="*50)
+    
     graph = load_cora_data(config.data.data_path)
+    
     print("✓ Dataset loaded successfully")
 
     print("\n" + "="*50)
     print("Step 3: Partitioning Graph")
     print("="*50)
+    
     cluster_data = partition_graph(graph, num_parts=config.data.num_parts)
+    
     print(f"✓ Graph partitioned into {config.data.num_parts} subgraphs")
 
     print("\n" + "="*50)
