@@ -1,6 +1,6 @@
-data/
+dataset/
 notebook/data/
-*/data/
+
 outputs
 outputs/checkpoints/*
 outputs/
@@ -8,3 +8,16 @@ src/__pycache__/*
 *.pyc
 __pycache__/
 *.pt
+
+__pycache__/
+*.py[cod]
+.env
+.venv
+env/
+venv/
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+dist/
+build/

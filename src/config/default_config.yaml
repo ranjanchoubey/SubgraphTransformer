@@ -1,6 +1,6 @@
 data:
   dataset_name: 'Cora'
-  data_path: 'data/cora/'
+  data_path: 'dataset'
   num_parts: 50  # Reduced from 100 to create larger, more meaningful subgraphs
   input_dim: 1433  # Original Cora feature dimension
 

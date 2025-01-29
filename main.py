@@ -4,12 +4,15 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 from torch.nn.utils.rnn import pad_sequence
 
-from src.data_preprocessing.data_processing import load_cora_data, partition_graph
-from src.data_preprocessing.embedding import mean_pooling, compute_laplacian_positional_embedding, compute_gcn_embeddings
+from src.data.data_processing import load_cora_data, partition_graph
+from src.data.embedding import mean_pooling, compute_laplacian_positional_embedding, compute_gcn_embeddings
 from src.models.transformer import GraphTransformer
 from src.train.trainer import train_model, evaluate_model
 from src.utils.utils import set_seed
 from src.config.config import load_config
+
+import sys
+sys.dont_write_bytecode = True
 
 def main():
     print("\n" + "="*50)

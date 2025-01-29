@@ -3,7 +3,7 @@ from torch_geometric.datasets import Planetoid
 from torch_geometric.loader import ClusterData
 from torch_geometric.transforms import NormalizeFeatures
 
-def load_cora_data(data_path="data/cora/"):
+def load_cora_data(data_path="dataset/"):
     """
     Loads the Cora dataset and normalizes features.
     """
