@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from src.transformer_encoder_layer import TransformerEncoderLayer
+from layers.transformer_encoder_layer import TransformerEncoderLayer
 
 class TransformerEncoder(nn.Module):
     def __init__(self, embed_dim, num_heads, ff_dim, num_layers, dropout=0.1):
