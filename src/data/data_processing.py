@@ -2,11 +2,16 @@ import torch
 from torch_geometric.datasets import Planetoid
 from torch_geometric.loader import ClusterData
 from torch_geometric.transforms import NormalizeFeatures
-
+import dgl
 def load_cora_data(data_path="dataset/"):
     """
     Loads the Cora dataset and normalizes features.
     """
+    
+    # Load the Cora dataset
+    dataset = dgl.data.CoraGraphDataset()
+    graph = dataset[0]  
+
     dataset = Planetoid(root=data_path, name='Cora',
     
     # The `transform=NormalizeFeatures()` argument in
@@ -39,5 +44,7 @@ def partition_graph(graph, num_parts=10):
     cluster_data = ClusterData(graph, num_parts=num_parts, recursive=False)
     print(f"Graph partitioned into {num_parts} subgraphs.")
     return cluster_data
+
+# write main here to test this file
 
 

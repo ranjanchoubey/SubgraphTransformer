@@ -103,12 +103,14 @@ def main():
         # Store results
         subgraph_embeddings.append(mean_pooling(gcn_embeddings))
         lpe_embeddings.append(lpe.mean(dim=0))
+        
         node_labels.append(subgraph.y)
         node_counts.append(num_nodes)
 
     # Stack and move to device
     subgraph_embeddings = torch.stack(subgraph_embeddings).to(device)
     lpe_embeddings = torch.stack(lpe_embeddings).to(device)
+    
     node_labels = torch.cat(node_labels, dim=0).to(device)
     node_counts = torch.tensor(node_counts).to(device)
 
