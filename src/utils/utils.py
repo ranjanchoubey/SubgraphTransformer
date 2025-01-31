@@ -149,15 +149,15 @@ def calculate_metrics(y_true, y_pred):
 
 def print_metrics(metrics, prefix=""):
     """Print metrics in a standard format."""
-    print(f"\n{prefix}:")
-    print(f"  Accuracy: {metrics['accuracy']:.2f}%")
-    print(f"  Macro-F1: {metrics['f1_macro']:.2f}%")
+    #print(f"\n{prefix}:")
+    #print(f"  Accuracy: {metrics['accuracy']:.2f}%")
+    #print(f"  Macro-F1: {metrics['f1_macro']:.2f}%")
 
 def calculate_masked_metrics(predictions, true_labels):
     """Calculate metrics for masked nodes."""
-    # print(",predictions : ",predictions,predictions.shape)
+    # #print(",predictions : ",predictions,predictions.shape)
     predicted_classes = torch.argmax(predictions,dim=1)
-    # print("After predicted_classes : ",predicted_classes,predicted_classes.shape)
-    print()
-    # print("true_labels : ",true_labels,true_labels.shape)
+    # #print("After predicted_classes : ",predicted_classes,predicted_classes.shape)
+    #print()
+    # #print("true_labels : ",true_labels,true_labels.shape)
     return calculate_metrics(true_labels.cpu().numpy(), predicted_classes.cpu().numpy())

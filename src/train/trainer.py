@@ -10,180 +10,137 @@ import dgl
 
 from src.train.metrics import accuracy_Cora as accuracy
 
-def train_epoch(model, optimizer, device, data_loader, epoch,train_mask):
-    
+def train_epoch(model, optimizer, device, data_loader, epoch, train_mask, node_counts, graph=None):
     model.train()
     epoch_loss = 0
     epoch_train_acc = 0
-    nb_data = 0
-    gpu_mem = 0
     
-    # for iter, (batch_graphs, batch_labels) in enumerate(data_loader):    
-
-        # optimizer.zero_grad()
-
-            
-        # batch_scores = model.forward(batch_graphs, batch_x, batch_e, batch_lap_pos_enc, batch_wl_pos_enc)
-    
-    
-    
+    for iter, batch_graphs in enumerate(data_loader):
+        print("\n=== Training Step ===")
+        print(f"Input batch size: {batch_graphs.shape}")  # [num_subgraphs, embedding_dim]
+        
+        batch_graphs = batch_graphs.to(device)
+        
+        optimizer.zero_grad()
+        
+        # Forward pass with embeddings directly
+        batch_scores = model(batch_graphs)
+        print(f"Model output (subgraph predictions): {batch_scores.shape}")  # [num_subgraphs, num_classes]
+        
+        # Map predictions back to nodes using node_counts
+        node_predictions = map_subgraph_to_node_predictions(batch_scores, node_counts)
+        print(f"Node-level predictions: {node_predictions.shape}")  # [total_num_nodes, num_classes]
+        print(f"Train mask shape: {train_mask.shape}")  # [total_num_nodes]
+        print(f"Masked predictions: {node_predictions[train_mask].shape}")  # [num_train_nodes, num_classes]
+        
+        # Calculate loss and accuracy using mapped predictions
+        class_counts = torch.bincount(graph.ndata['label'][train_mask])
+        class_weights = 1.0 / class_counts.float()
+        class_weights = class_weights / class_weights.sum()
+        
+        loss = nn.functional.cross_entropy(
+            node_predictions[train_mask], 
+            graph.ndata['label'][train_mask],
+            weight=class_weights.to(device)
+        )
+        loss.backward()
+        
+        # Add gradient clipping
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+        
+        optimizer.step()
+        
+        epoch_loss += loss.detach().item()
+        epoch_train_acc += accuracy(node_predictions[train_mask], graph.ndata['label'][train_mask])
+        
+    epoch_loss /= (iter + 1)
+    epoch_train_acc /= (iter + 1)
     
     return epoch_loss, epoch_train_acc, optimizer
 
-def evaluate_network(model, device, data_loader, epoch,test_mask):
-    
+def evaluate_network(model, device, data_loader, epoch, eval_mask, node_counts, graph=None):
     model.eval()
     epoch_test_loss = 0
     epoch_test_acc = 0
     
+    with torch.no_grad():
+        for iter, batch_graphs in enumerate(data_loader):
+            batch_graphs = batch_graphs.to(device)
+            
+            # Forward pass with embeddings
+            batch_scores = model(batch_graphs)
+            
+            # Map predictions to nodes
+            node_predictions = map_subgraph_to_node_predictions(batch_scores, node_counts)
+            print("\n=== Evaluation Step ===")
+            print(f"Node-level predictions (before mask): {node_predictions.shape}")  # [total_num_nodes, num_classes]
+            
+            # Apply mask
+            masked_predictions = node_predictions[eval_mask]
+            print(f"Node-level predictions (after mask): {masked_predictions.shape}")  # [num_eval_nodes, num_classes]
+            
+            # Get predicted classes and true labels
+            predicted_classes = torch.argmax(masked_predictions, dim=1)
+            print(f"Predicted classes: {predicted_classes.shape}")  # [num_eval_nodes]
+            true_labels = graph.ndata['label'][eval_mask]
+            
+            # Print comparison for mismatched predictions
+            print("\n=== Prediction Analysis ===")
+            print("Format: Node_idx | Predicted -> True Label")
+            mismatches = (predicted_classes != true_labels).nonzero().squeeze()
+            
+            for idx in mismatches[:130]:  # Show first 20 mismatches
+                node_idx = eval_mask.nonzero()[idx]
+                pred = predicted_classes[idx].item()
+                true = true_labels[idx].item()
+                print(f"Node {node_idx.item():4d} | Predicted: {pred} -> True: {true}")
+            
+            if len(mismatches) > 130:
+                print(f"... and {len(mismatches)-20} more mismatches")
+                
+            print(f"\nAccuracy Stats:")
+            print(f"Total nodes evaluated: {len(true_labels)}")
+            print(f"Correct predictions: {(predicted_classes == true_labels).sum().item()}")
+            print(f"Wrong predictions: {len(mismatches)}")
+            
+            # Calculate class-wise accuracy
+            print("\nClass-wise Accuracy:")
+            for class_idx in range(7):  # Cora has 7 classes
+                class_mask = (true_labels == class_idx)
+                if class_mask.sum() > 0:
+                    class_acc = (predicted_classes[class_mask] == true_labels[class_mask]).float().mean()
+                    print(f"Class {class_idx}: {class_acc:.4f}")
+            
+            loss = model.loss(masked_predictions, true_labels)
+            epoch_test_loss += loss.item()
+            epoch_test_acc += accuracy(masked_predictions, true_labels)
+            
+    epoch_test_loss /= (iter + 1)
+    epoch_test_acc /= (iter + 1)
+    
     return epoch_test_loss, epoch_test_acc
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# import torch
-# import torch.nn.functional as F
-# from src.utils.utils import calculate_metrics, print_metrics, calculate_masked_metrics
-# import os
-# import time
-# from torch.utils.tensorboard import SummaryWriter
-# from torch.optim.lr_scheduler import ReduceLROnPlateau
-
-# def train_model(*, model, subgraph_embeddings, lpe_embeddings, node_labels, node_counts, 
-#                 train_mask, val_mask, node_indices, num_epochs=100, learning_rate=0.001):
-#     device = next(model.parameters()).device
-#     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=0.01)
-#     scheduler = ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=10, verbose=True)
+def map_subgraph_to_node_predictions(subgraph_predictions, node_counts):
+    print("\n=== Node Mapping Debug ===")
+    print(f"Subgraph predictions shape: {subgraph_predictions.shape}")  # [num_subgraphs, num_classes]
+    print(f"Node counts shape: {node_counts.shape}")  # [num_subgraphs]
     
-#     best_val_acc = 0
-#     best_model_state = None
-#     best_train_metrics = None
+    """Maps subgraph predictions back to node-level predictions"""
+    node_predictions = []
+    start_idx = 0
     
-#     print(f"Starting training for {num_epochs} epochs...")
-    
-#     for epoch in range(num_epochs):
-#         model.train()
-#         optimizer.zero_grad()
+    for i, count in enumerate(node_counts):
+        count = count.item()
+        print(f"Subgraph {i}: {count} nodes")
+        # Repeat the subgraph prediction for each node in that subgraph
+        repeated_pred = subgraph_predictions[i:i+1].repeat(count, 1)
+        print(f"Repeated prediction shape: {repeated_pred.shape}")  # [num_nodes_in_subgraph, num_classes]
+        node_predictions.append(repeated_pred)
+        start_idx += count
         
-#         try:
-#             # Forward pass
-#             train_predictions, _ = model(subgraph_embeddings, lpe_embeddings, node_counts, node_indices)
-            
-#             # Get masked predictions and compute loss
-#             train_node_predictions = train_predictions[train_mask]
-#             train_node_labels = node_labels[train_mask]
-            
-#             loss = model.loss(train_node_predictions, train_node_labels)  # Use weighted loss
+    final_predictions = torch.cat(node_predictions, dim=0)
+    print(f"Final node predictions shape: {final_predictions.shape}")  # [total_num_nodes, num_classes]
+    print(f"Final node predictions shape: {final_predictions.shape}")  # [total_num_nodes, num_classes]
+    return final_predictions
 
-#             # Backward pass with gradient clipping
-#             loss.backward()
-#             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-#             optimizer.step()
 
-#             # Validation
-#             with torch.no_grad():
-#                 val_predictions, _ = model(subgraph_embeddings, lpe_embeddings, node_counts, node_indices)
-#                 val_node_predictions = val_predictions[val_mask]
-#                 val_node_labels = node_labels[val_mask]
-#                 val_metrics = calculate_masked_metrics(val_node_predictions, val_node_labels)
-
-#             print(f'Epoch [{epoch+1}/{num_epochs}] Loss: {loss.item():.4f} Val Accuracy: {val_metrics["accuracy"]:.1f}%')
-
-#             if val_metrics['accuracy'] > best_val_acc:
-#                 best_val_acc = val_metrics['accuracy']
-#                 best_model_state = model.state_dict().copy()
-#                 print(f'New best validation accuracy: {best_val_acc:.1f}%')
-
-#             # Update learning rate
-#             scheduler.step(val_metrics['accuracy'])
-
-#         except Exception as e:
-#             print(f"\nError in training: {str(e)}")
-#             raise e
-
-#     print(f"\nTraining completed. Best validation accuracy: {best_val_acc:.1f}%")
-#     model.load_state_dict(best_model_state)
-#     return {'val_acc': best_val_acc}
-
-# def evaluate_model(*, model, subgraph_embeddings, lpe_embeddings, node_labels, node_counts, mask, node_indices):
-#     """Evaluate model using mask."""
-#     device = next(model.parameters()).device 
-#     model.eval()
-    
-#     with torch.no_grad():
-#         # Get predictions for all nodes
-#         predictions, node_indices_out = model(subgraph_embeddings, lpe_embeddings, node_counts, node_indices)
-        
-#         # Ensure predictions are properly aligned with node indices
-#         eval_node_predictions = predictions[mask]
-#         eval_node_labels = node_labels[mask]
-        
-#         # Evaluation statistics
-#         print("\nModel Evaluation:")
-#         print("═══════════════")
-#         print("├── Data Summary:")
-#         print(f"│   ├── Total Nodes: {len(node_labels)}")
-#         print(f"│   ├── Evaluated Nodes: {mask.sum().item()}")
-#         print(f"│   └── Prediction Shape: {eval_node_predictions.shape}")
-        
-#         # Compute metrics
-#         metrics = calculate_masked_metrics(eval_node_predictions, eval_node_labels)
-        
-#         print("└── Results:")
-#         print(f"    └── Test Accuracy: {metrics['accuracy']:.2f}%")
-        
-#         return metrics

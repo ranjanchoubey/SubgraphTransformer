@@ -3,6 +3,8 @@
 """
 import random
 import sys
+
+from src.utils.utils import set_seed
 sys.dont_write_bytecode = True
 
 import numpy as np
@@ -20,14 +22,13 @@ from torch.utils.data import DataLoader
 """
     IMPORTING CUSTOM MODULES/METHODS
 """
-from src.data.data_processing import load_cora_data, partition_graph
-from src.data.data import LoadData
+
+from src.data.data import LoadData, partition_graph
 from src.data.embedding import mean_pooling, compute_laplacian_positional_embedding, compute_gcn_embeddings
 from src.nets.load_net import gnn_model 
 
 from src.train.trainer import train_epoch, evaluate_network 
-from src.utils.utils import set_seed
-from src.configs.config import load_config
+
 
 def gpu_setup(use_gpu, gpu_id):
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
@@ -46,19 +47,19 @@ def gpu_setup(use_gpu, gpu_id):
 def view_model_param(MODEL_NAME, net_params):
     model = gnn_model(MODEL_NAME, net_params)
     total_param = 0
-    print("MODEL DETAILS:\n")
-    #print(model)
+    #print("MODEL DETAILS:\n")
+    ##print(model)
     for param in model.parameters():
-        # print(param.data.size())
+        # #print(param.data.size())
         total_param += np.prod(list(param.data.size()))
-    print('MODEL/Total parameters:', MODEL_NAME, total_param)
+    #print('MODEL/Total parameters:', MODEL_NAME, total_param)
     return total_param
 
 
 """
     TRAINING CODE
 """
-def train_val_pipeline(MODEL_NAME, dataset, params, net_params, dirs,graph):
+def train_val_pipeline(MODEL_NAME, dataset, params, net_params, dirs, graph, node_counts):
 
     start0 = time.time()
     per_epoch_time = []
@@ -68,7 +69,9 @@ def train_val_pipeline(MODEL_NAME, dataset, params, net_params, dirs,graph):
     train_mask = graph.ndata['train_mask']
     val_mask = graph.ndata['val_mask']
     test_mask = graph.ndata['test_mask']
-    print("train_mask : ",train_mask.shape)
+    #print("train_mask : ", train_mask.shape)
+    print("val_mask : ", val_mask.shape)
+    print("test_mask : ", test_mask.shape)
     
     trainset = dataset
     valset = dataset
@@ -77,9 +80,13 @@ def train_val_pipeline(MODEL_NAME, dataset, params, net_params, dirs,graph):
     root_log_dir, root_ckpt_dir, write_file_name, write_config_file = dirs
     device = net_params['device']
     
+    # Move graph to device at the start
+    graph = graph.to(device)
+    node_counts = node_counts.to(device)
+    
     # Write the network and optimization hyper-parameters in folder config/
     with open(write_config_file + '.txt', 'w') as f:
-        f.write("""Dataset: {},\nModel: {}\n\nparams={}\n\nnet_params={}\n\n\nTotal Parameters: {}\n\n"""                .format(DATASET_NAME, MODEL_NAME, params, net_params, net_params['total_param']))
+        f.write("""Dataset: {},\nModel: {}\n\nparams={}\n\nnet_params={}\n\n\nTotal Parameters: {}\n\n""".format(DATASET_NAME, MODEL_NAME, params, net_params, net_params['total_param']))
         
     log_dir = os.path.join(root_log_dir, "RUN_" + str(0))
     writer = SummaryWriter(log_dir=log_dir)    
@@ -97,9 +104,10 @@ def train_val_pipeline(MODEL_NAME, dataset, params, net_params, dirs,graph):
     epoch_train_losses, epoch_val_losses = [], []
     epoch_train_accs, epoch_val_accs = [], [] 
 
-    train_loader = DataLoader(trainset)
-    val_loader = DataLoader(valset)
-    test_loader = DataLoader(testset)
+    # Modify DataLoader to not shuffle and keep batch size same as dataset size
+    train_loader = DataLoader(trainset, batch_size=len(dataset), shuffle=False)
+    val_loader = DataLoader(valset, batch_size=len(dataset), shuffle=False)
+    test_loader = DataLoader(testset, batch_size=len(dataset), shuffle=False)
 
 
     # At any point you can hit Ctrl + C to break out of training early.
@@ -107,14 +115,22 @@ def train_val_pipeline(MODEL_NAME, dataset, params, net_params, dirs,graph):
         with tqdm(range(params['epochs'])) as t:
             for epoch in t:   
                 
+
                 t.set_description('Epoch %d' % epoch)
             
                 start = time.time()
                 
-                epoch_train_loss, epoch_train_acc, optimizer = train_epoch(model, optimizer, device, train_loader, epoch,train_mask)                
-                epoch_val_loss, epoch_val_acc = evaluate_network(model, device, val_loader, epoch,val_mask)
+                epoch_train_loss, epoch_train_acc, optimizer = train_epoch(
+                    model, optimizer, device, train_loader, epoch, train_mask, node_counts, graph
+                )
                 
-                _, epoch_test_acc = evaluate_network(model, device, test_loader, epoch,test_mask)                    
+                epoch_val_loss, epoch_val_acc = evaluate_network(
+                    model, device, val_loader, epoch, val_mask, node_counts, graph
+                )
+                
+                _, epoch_test_acc = evaluate_network(
+                    model, device, test_loader, epoch, test_mask, node_counts, graph
+                )                
 
                 epoch_train_losses.append(epoch_train_loss)
                 epoch_val_losses.append(epoch_val_loss)
@@ -151,7 +167,7 @@ def train_val_pipeline(MODEL_NAME, dataset, params, net_params, dirs,graph):
                 scheduler.step(epoch_val_loss)
     
                 if optimizer.param_groups[0]['lr'] < params['min_lr']:
-                    print("\n!! LR SMALLER OR EQUAL TO MIN LR THRESHOLD.")
+                    #print("\n!! LR SMALLER OR EQUAL TO MIN LR THRESHOLD.")
                     break    
                 
                 # Stop training after params['max_time'] hours
@@ -164,8 +180,8 @@ def train_val_pipeline(MODEL_NAME, dataset, params, net_params, dirs,graph):
         print('-' * 89)
         print('Exiting from training early because of KeyboardInterrupt')
 
-    _, test_acc = evaluate_network(model, device, train_loader, epoch,test_mask)
-    _, train_acc = evaluate_network(model, device, train_loader, epoch, train_mask)
+    _, test_acc = evaluate_network(model, device, train_loader, epoch, test_mask, node_counts, graph)
+    _, train_acc = evaluate_network(model, device, train_loader, epoch, train_mask, node_counts, graph)
     print("Test Accuracy: {:.4f}".format(test_acc))
     print("Train Accuracy: {:.4f}".format(train_acc))
     print("Convergence Time (Epochs): {:.4f}".format(epoch))
@@ -401,16 +417,15 @@ def main():
     print(f"Total number of subgraphs: {len(subgraphs)}")
     print(f"GCN embedding shape: {subgraph_embeddings.shape}")
     print(f"LPE embedding shape: {lpe_embeddings.shape}")
-    print(f"Average nodes per subgraph: {torch.mean(node_counts.float()):.2f}")
+    # print(f"Average nodes per subgraph: {torch.mean(node_counts.float()):.2f}")
     
     dataset = subgraph_embeddings + lpe_embeddings
     print("subgraph_token : ",dataset.shape)  # size = [subgraph * embedding dimension]
     
     net_params['total_param'] = view_model_param(MODEL_NAME, net_params)
-    train_val_pipeline(MODEL_NAME, dataset, params, net_params, dirs,graph)
+    # Update the function call to include node_counts
+    train_val_pipeline(MODEL_NAME, dataset, params, net_params, dirs, graph, node_counts) 
 
+#     # #print("\n🎉 Training Complete!")
 
-#     # print("\n🎉 Training Complete!")
-
-if __name__ == "__main__":
-    main()
+if __name__ == "__main__":    main()

@@ -1,4 +1,155 @@
 import torch
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+class GraphTransformerLayer(nn.Module):
+    def __init__(self, in_dim, out_dim, num_heads, dropout, layer_norm, batch_norm, residual):
+        super(GraphTransformerLayer, self).__init__()
+        self.num_heads = num_heads
+        self.residual = residual
+        self.layer_norm = layer_norm
+        self.batch_norm = batch_norm
+        self.dropout = dropout
+
+        self.q_proj = nn.Linear(in_dim, out_dim)
+        self.k_proj = nn.Linear(in_dim, out_dim)
+        self.v_proj = nn.Linear(in_dim, out_dim)
+        self.attention = nn.MultiheadAttention(out_dim, num_heads, dropout=dropout)
+        self.O = nn.Linear(out_dim, out_dim)
+
+        if self.layer_norm:
+            self.layer_norm1 = nn.LayerNorm(out_dim)
+            self.layer_norm2 = nn.LayerNorm(out_dim)
+        if self.batch_norm:
+            self.batch_norm1 = nn.BatchNorm1d(out_dim)
+            self.batch_norm2 = nn.BatchNorm1d(out_dim)
+
+    def forward(self, h):
+        print(f"  Layer input size: {h.shape}")  # [100, 64]
+        h_in1 = h
+
+        # Debug Q,K,V projections
+        q = self.q_proj(h)
+        k = self.k_proj(h)
+        v = self.v_proj(h)
+        print(f"  Q,K,V sizes: {q.shape}")  # Should all be [100, 64]
+
+        # Self-attention
+        h_attn, attention_weights = self.attention(q, k, v)
+        print(f"  Attention matrix size: {attention_weights.shape}")  # [8, 100, 100]
+        print(f"  Attention output size: {h_attn.shape}")  # [100, 64]
+
+        # Rest of processing
+        h = h_attn
+        h = F.dropout(h, self.dropout, training=self.training)
+        h = self.O(h)
+
+        if self.residual:
+            h = h_in1 + h
+
+        print(f"  Layer output size: {h.shape}")  # [100, 64]
+        return h
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+"""
+    Graph Transformer Layer
+    
+"""
+
+class GraphTransformerLayer(nn.Module):
+    def __init__(self, in_dim, out_dim, num_heads, dropout=0.0, layer_norm=False, batch_norm=True, residual=True):
+        super().__init__()
+        self.in_dim = in_dim
+        self.out_dim = out_dim
+        self.num_heads = num_heads
+        self.dropout = dropout
+        self.layer_norm = layer_norm
+        self.batch_norm = batch_norm
+        self.residual = residual
+        
+        # Create separate Q,K,V projections for debugging
+        self.q_proj = nn.Linear(in_dim, in_dim)
+        self.k_proj = nn.Linear(in_dim, in_dim)
+        self.v_proj = nn.Linear(in_dim, in_dim)
+        
+        # Modified attention for tensor inputs
+        self.attention = nn.MultiheadAttention(
+            embed_dim=in_dim,
+            num_heads=num_heads,
+            dropout=dropout,
+            batch_first=True
+        )
+        
+        if self.layer_norm:
+            self.layer_norm1 = nn.LayerNorm(in_dim)
+            self.layer_norm2 = nn.LayerNorm(out_dim)
+        if self.batch_norm:
+            self.batch_norm1 = nn.BatchNorm1d(in_dim)
+            self.batch_norm2 = nn.BatchNorm1d(out_dim)
+        
+        self.ffn = nn.Sequential(
+            nn.Linear(in_dim, out_dim),
+            nn.ReLU(),
+            nn.Linear(out_dim, out_dim)
+        )
+        
+    def forward(self, h):
+        h_in1 = h # for first residual connection
+        
+        # Print input tensor size [num_subgraphs, hidden_dim]
+        #print(f"\n=== Transformer Layer Debug ===")
+        #print(f"Input tensor size: {h.shape}")
+        
+        # Project to Q,K,V for debugging
+        q = self.q_proj(h)
+        k = self.k_proj(h)
+        v = self.v_proj(h)
+        
+        #print(f"Q size: {q.shape}")
+        #print(f"K size: {k.shape}")
+        #print(f"V size: {v.shape}")
+        
+        # Self-attention with proper shapes
+        h_attn, attention_weights = self.attention(
+            query=h,      # [batch_size, seq_len, embed_dim]
+            key=h,        
+            value=h,      
+            need_weights=True,
+            average_attn_weights=False
+        )
+        
+        #print(f"Attention matrix size: {attention_weights.shape}")  # [num_heads, seq_len, seq_len]
+        #print(f"Attention output size: {h_attn.shape}")  # [batch_size, seq_len, embed_dim]
+        
+        h = h_attn
+        
+        # Apply dropout
+        h = F.dropout(h, self.dropout, training=self.training)
+        
+        if self.residual:
+            h = h_in1 + h # residual connection
+        
+        if self.layer_norm:
+            h = self.layer_norm1(h)
+        if self.batch_norm:
+            h = self.batch_norm1(h)
+        
+        h_in2 = h # for second residual connection
+        
+        h = self.ffn(h)
+        
+        if self.residual:
+            h = h_in2 + h # residual connection
+        
+        if self.layer_norm:
+            h = self.layer_norm2(h)
+        if self.batch_norm:
+            h = self.batch_norm2(h)
+        
+        return h
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -101,7 +252,7 @@ class GraphTransformerLayer(nn.Module):
     """
     '''Initialization : This layer initializes components for multi-head attention,
       feed-forward networks, and normalization layers.'''
-    def __init__(self, in_dim, out_dim, num_heads, dropout=0.0, layer_norm=False, batch_norm=True, residual=True, use_bias=False):
+    def __init__(self, in_dim, out_dim, num_heads, dropout=0.0, layer_norm=False, batch_norm=True, residual=True):
         super().__init__()
 
         self.in_channels = in_dim
@@ -112,7 +263,13 @@ class GraphTransformerLayer(nn.Module):
         self.layer_norm = layer_norm        
         self.batch_norm = batch_norm
         
-        self.attention = MultiHeadAttentionLayer(in_dim, out_dim//num_heads, num_heads, use_bias)
+        # Modified attention for tensor inputs - specify key_dims
+        self.attention = nn.MultiheadAttention(
+            embed_dim=in_dim,
+            num_heads=num_heads,
+            dropout=dropout,
+            batch_first=True  # Important for shape handling
+        )
         
         self.O = nn.Linear(out_dim, out_dim)
 
@@ -132,15 +289,31 @@ class GraphTransformerLayer(nn.Module):
         if self.batch_norm:
             self.batch_norm2 = nn.BatchNorm1d(out_dim)
         
-    def forward(self, g, h):
+    def forward(self, h):
         h_in1 = h # for first residual connection
         
-        '''Multi-Head Attention: The input features are processed through the multi-head attention layer.'''
-        # multi-head attention out
-        attn_out = self.attention(g, h)
-        h = attn_out.view(-1, self.out_channels)
+        # Print input tensor size [num_subgraphs, hidden_dim]
+        print(f"\nInput tensor size: {h.shape}")
         
-        '''Dropout: A dropout layer is applied to prevent overfitting.'''
+        # No need to unsqueeze since batch_first=True
+        print(f"Reshaped for attention: {h.shape}")  # Should be [100, 16]
+        
+        # Self-attention with proper shapes
+        h_attn, attention_weights = self.attention(
+            query=h,      # [100, 16]
+            key=h,        # [100, 16]
+            value=h,      # [100, 16]
+            need_weights=True,
+            average_attn_weights=False
+        )
+        
+        print(f"Attention matrix size: {attention_weights.shape}")  # Should be [8, 100, 100]
+        print(f"Attention output size: {h_attn.shape}")  # Should be [100, 16]
+        
+        # No need to squeeze since we kept batch_first=True
+        h = h_attn
+        
+        # Apply dropout
         h = F.dropout(h, self.dropout, training=self.training)
         
         h = self.O(h)
