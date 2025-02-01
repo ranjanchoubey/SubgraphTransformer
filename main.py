@@ -20,8 +20,7 @@ from torch.utils.data import DataLoader
 """
     IMPORTING CUSTOM MODULES/METHODS
 """
-from src.data.data_processing import load_cora_data, partition_graph
-from src.data.data import LoadData
+from src.data.data import LoadData, partition_graph
 from src.data.embedding import mean_pooling, compute_laplacian_positional_embedding, compute_gcn_embeddings
 from src.nets.load_net import gnn_model 
 
