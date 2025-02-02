@@ -6,184 +6,124 @@ import torch
 import torch.nn as nn
 import math
 import dgl
+from src.train.metrics import  accuracy
+from torch.utils.data import DataLoader
+import dgl
+import torch
 
 
-from src.train.metrics import accuracy_Cora as accuracy
+def collate_graphs(batch):
+    """
+    Custom collate function for DGLGraph objects.
+    Args:
+        batch: A list of tuples (graph, labels).
+    Returns:
+        batched_graph: A single batched DGLGraph.
+    """
+    graphs, _ = map(list, zip(*batch))  # Extract graphs from the batch
+    batched_graph = dgl.batch(graphs)  # Batch the graphs into a single graph
+    return batched_graph
 
-def train_epoch(model, optimizer, device, data_loader, epoch,train_mask):
+def expand_subgraph_predictions(subgraph_scores, node_counts):
+    """
+    Expands subgraph-level predictions to all nodes in the graph.
     
+    Args:
+        subgraph_scores: Subgraph-level predictions (shape: [num_subgraphs, num_classes]).
+        node_counts: Number of nodes in each subgraph (shape: [num_subgraphs]).
+    
+    Returns:
+        node_prediction: Node-level predictions (shape: [num_nodes, num_classes]).
+    """
+    # Repeat subgraph predictions for each node in the subgraph
+    # print("\nbefore populating subgraph prediction: ",subgraph_scores.shape)
+    node_prediction = torch.repeat_interleave(subgraph_scores, node_counts, dim=0)
+    # print("After populating subgraph prediction : ",node_prediction.shape)
+    return node_prediction
+
+
+
+
+def train_epoch(model, optimizer, device, data_loader, epoch, train_mask, node_labels, node_counts):
+    """
+    Trains the model for one epoch.
+    
+    Args:
+        model: The model to train.
+        optimizer: The optimizer for updating model parameters.
+        device: The device (CPU/GPU) to use.
+        data_loader: DataLoader for the training dataset.
+        epoch: Current epoch number.
+        train_mask: Mask for training nodes.
+        node_labels: Labels for all nodes in the graph.
+        node_counts: Number of nodes in each subgraph.
+    
+    Returns:
+        epoch_loss: Average loss for the epoch.
+        epoch_train_acc: Average accuracy for the epoch.
+        optimizer: The optimizer after updating parameters.
+    """
     model.train()
     epoch_loss = 0
     epoch_train_acc = 0
-    nb_data = 0
-    gpu_mem = 0
-    
-    # for iter, (batch_graphs, batch_labels) in enumerate(data_loader):    
 
-        # optimizer.zero_grad()
+    # Since the dataset is a single graph, the data_loader will have only one batch
+    for iter, batch_graphs in enumerate(data_loader):
+        # Move data to the device
+        batch_graphs = batch_graphs.to(device)
+        batch_x = batch_graphs.ndata['feat'].to(device)  # Node features
+        batch_labels = node_labels.to(device)  # Labels for all nodes
 
-            
-        # batch_scores = model.forward(batch_graphs, batch_x, batch_e, batch_lap_pos_enc, batch_wl_pos_enc)
-    
-    
-    
-    
+        # Zero the gradients
+        optimizer.zero_grad()
+
+        # Forward pass: Get subgraph-level predictions
+        batch_scores = model.forward(batch_graphs, batch_x)  # Shape: [num_subgraphs, num_classes]
+
+        # Expand subgraph predictions to all nodes
+        node_prediction = expand_subgraph_predictions(batch_scores, node_counts)  # Shape: [num_nodes, num_classes]
+
+        # Compute loss only for training nodes
+        loss = model.loss(node_prediction[train_mask], batch_labels[train_mask])
+        
+        loss.backward()
+        optimizer.step()
+        epoch_loss += loss.detach().item()
+        epoch_train_acc += accuracy(node_prediction[train_mask], batch_labels[train_mask], phase="train", epoch=epoch)
+
+    # Normalize loss and accuracy
+    epoch_loss /= (iter + 1)
+    epoch_train_acc /= (iter + 1)  # Average accuracy across batches
+
     return epoch_loss, epoch_train_acc, optimizer
 
-def evaluate_network(model, device, data_loader, epoch,test_mask):
-    
+def  evaluate_network(model, device, data_loader, epoch,test_mask, node_labels,node_counts, phase="val"):
+
     model.eval()
     epoch_test_loss = 0
     epoch_test_acc = 0
     
+    with torch.no_grad():
+        for iter, batch_graphs in enumerate(data_loader):
+            batch_graphs = batch_graphs.to(device)
+            batch_x = batch_graphs.ndata['feat'].to(device)  # Node features
+            batch_labels = node_labels.to(device)  # Labels for all nodes
+
+            # Forward pass: Get subgraph-level predictions
+            batch_scores = model.forward(batch_graphs, batch_x)  # Shape: [num_subgraphs, num_classes]
+                    
+            # Expand subgraph predictions to all nodes
+            node_prediction = expand_subgraph_predictions(batch_scores, node_counts)  # Shape: [num_nodes, num_classes]
+            
+            # Compute loss only for training nodes
+            loss = model.loss(node_prediction[test_mask], batch_labels[test_mask])
+            
+            epoch_test_loss += loss.detach().item()
+            # Compute accuracy only for test nodes
+            epoch_test_acc += accuracy(node_prediction[test_mask], batch_labels[test_mask], phase=phase, epoch=epoch)
+            
+        epoch_test_loss /= (iter + 1)
+        epoch_test_acc /= (iter + 1)  # Average accuracy across batches
+        
+
     return epoch_test_loss, epoch_test_acc
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# import torch
-# import torch.nn.functional as F
-# from src.utils.utils import calculate_metrics, print_metrics, calculate_masked_metrics
-# import os
-# import time
-# from torch.utils.tensorboard import SummaryWriter
-# from torch.optim.lr_scheduler import ReduceLROnPlateau
-
-# def train_model(*, model, subgraph_embeddings, lpe_embeddings, node_labels, node_counts, 
-#                 train_mask, val_mask, node_indices, num_epochs=100, learning_rate=0.001):
-#     device = next(model.parameters()).device
-#     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=0.01)
-#     scheduler = ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=10, verbose=True)
-    
-#     best_val_acc = 0
-#     best_model_state = None
-#     best_train_metrics = None
-    
-#     print(f"Starting training for {num_epochs} epochs...")
-    
-#     for epoch in range(num_epochs):
-#         model.train()
-#         optimizer.zero_grad()
-        
-#         try:
-#             # Forward pass
-#             train_predictions, _ = model(subgraph_embeddings, lpe_embeddings, node_counts, node_indices)
-            
-#             # Get masked predictions and compute loss
-#             train_node_predictions = train_predictions[train_mask]
-#             train_node_labels = node_labels[train_mask]
-            
-#             loss = model.loss(train_node_predictions, train_node_labels)  # Use weighted loss
-
-#             # Backward pass with gradient clipping
-#             loss.backward()
-#             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-#             optimizer.step()
-
-#             # Validation
-#             with torch.no_grad():
-#                 val_predictions, _ = model(subgraph_embeddings, lpe_embeddings, node_counts, node_indices)
-#                 val_node_predictions = val_predictions[val_mask]
-#                 val_node_labels = node_labels[val_mask]
-#                 val_metrics = calculate_masked_metrics(val_node_predictions, val_node_labels)
-
-#             print(f'Epoch [{epoch+1}/{num_epochs}] Loss: {loss.item():.4f} Val Accuracy: {val_metrics["accuracy"]:.1f}%')
-
-#             if val_metrics['accuracy'] > best_val_acc:
-#                 best_val_acc = val_metrics['accuracy']
-#                 best_model_state = model.state_dict().copy()
-#                 print(f'New best validation accuracy: {best_val_acc:.1f}%')
-
-#             # Update learning rate
-#             scheduler.step(val_metrics['accuracy'])
-
-#         except Exception as e:
-#             print(f"\nError in training: {str(e)}")
-#             raise e
-
-#     print(f"\nTraining completed. Best validation accuracy: {best_val_acc:.1f}%")
-#     model.load_state_dict(best_model_state)
-#     return {'val_acc': best_val_acc}
-
-# def evaluate_model(*, model, subgraph_embeddings, lpe_embeddings, node_labels, node_counts, mask, node_indices):
-#     """Evaluate model using mask."""
-#     device = next(model.parameters()).device 
-#     model.eval()
-    
-#     with torch.no_grad():
-#         # Get predictions for all nodes
-#         predictions, node_indices_out = model(subgraph_embeddings, lpe_embeddings, node_counts, node_indices)
-        
-#         # Ensure predictions are properly aligned with node indices
-#         eval_node_predictions = predictions[mask]
-#         eval_node_labels = node_labels[mask]
-        
-#         # Evaluation statistics
-#         print("\nModel Evaluation:")
-#         print("═══════════════")
-#         print("├── Data Summary:")
-#         print(f"│   ├── Total Nodes: {len(node_labels)}")
-#         print(f"│   ├── Evaluated Nodes: {mask.sum().item()}")
-#         print(f"│   └── Prediction Shape: {eval_node_predictions.shape}")
-        
-#         # Compute metrics
-#         metrics = calculate_masked_metrics(eval_node_predictions, eval_node_labels)
-        
-#         print("└── Results:")
-#         print(f"    └── Test Accuracy: {metrics['accuracy']:.2f}%")
-        
-#         return metrics

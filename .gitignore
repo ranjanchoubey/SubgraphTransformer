@@ -22,3 +22,6 @@ venv/
 htmlcov/
 dist/
 build/
+
+.vscode/
+.vscode

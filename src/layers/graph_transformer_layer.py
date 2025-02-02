@@ -52,47 +52,43 @@ class MultiHeadAttentionLayer(nn.Module):
             self.Q = nn.Linear(in_dim, out_dim * num_heads, bias=False)
             self.K = nn.Linear(in_dim, out_dim * num_heads, bias=False)
             self.V = nn.Linear(in_dim, out_dim * num_heads, bias=False)
-        
-    
-    def propagate_attention(self, g):
-        '''Attention Score Calculation: The attention score is computed 
-        as the dot product between keys and queries:'''
-        # Compute attention score 
-        g.apply_edges(src_dot_dst('K_h', 'Q_h', 'score')) #, edges)
-
-        '''Scaled Exponential: The scores are scaled and exponentiated for numerical stability:'''
-        g.apply_edges(scaled_exp('score', np.sqrt(self.out_dim)))
-
-        # Send weighted values to target nodes
-        eids = g.edges()
-
-        '''Message Passing: The scores are used to weight the values,
-          and the results are aggregated at the target nodes.'''
-        g.send_and_recv(eids, fn.u_mul_e('V_h', 'score', 'V_h'), fn.sum('V_h', 'wV'))
-
-        '''Summing Attention Scores: The attention scores are summed to get the final attention weights.'''
-        g.send_and_recv(eids, fn.copy_e('score', 'score'), fn.sum('score', 'z'))
-    
+            
     def forward(self, g, h):
-        
-        Q_h = self.Q(h)
-        K_h = self.K(h)
-        V_h = self.V(h)
+        Q = self.Q(h)  # [num_nodes, out_dim * num_heads]
+        K = self.K(h)  # [num_nodes, out_dim * num_heads]
+        V = self.V(h)  # [num_nodes, out_dim * num_heads]
         
         # Reshaping into [num_nodes, num_heads, feat_dim] to 
         # get projections for multi-head attention
-        g.ndata['Q_h'] = Q_h.view(-1, self.num_heads, self.out_dim)
-        g.ndata['K_h'] = K_h.view(-1, self.num_heads, self.out_dim)
-        g.ndata['V_h'] = V_h.view(-1, self.num_heads, self.out_dim)
+        Q = Q.view(-1, self.num_heads, self.out_dim)
+        K = K.view(-1, self.num_heads, self.out_dim)
+        V = V.view(-1, self.num_heads, self.out_dim)
         
-        '''Propagate Attention: The attention scores and weighted values are computed and aggregated.'''
-        self.propagate_attention(g)
+        # Compute attention scores between subgraphs
+        attention_scores = torch.matmul(Q, K.transpose(-2, -1)) / np.sqrt(self.out_dim)
         
-        '''Attention Output: The attention output is computed by dividing the weighted values by the attention scores.'''
-        head_out = g.ndata['wV']/g.ndata['z']
+        print("\n=== Attention Layer Statistics ===")
+        print(f"Number of subgraphs: {Q.shape[0]}")
+        print(f"Number of attention heads: {self.num_heads}")
+        print(f"Features per head: {self.out_dim}")
+        print(f"Direct subgraph-to-subgraph attention: {Q.shape[0]}x{K.shape[0]} matrix per head")
+        print(f"Total attention elements: {Q.shape[0] * K.shape[0] * self.num_heads}")
+        print("================================")
         
-        return head_out
-    
+        # Apply softmax
+        attention_probs = F.softmax(attention_scores, dim=-1)
+        
+        # Compute weighted sum
+        # [num_nodes, num_heads, out_dim]
+        out = torch.matmul(attention_probs, V)
+        # print(f"Output shape before reshape: {out.shape}")
+        
+        # Reshape back to [num_nodes, num_heads * out_dim]
+        out = out.view(-1, self.num_heads * self.out_dim)
+        # print(f"Final output shape: {out.shape}")
+        
+        return out
+
 '''Graph Transformer Layer: This layer combines multi-head attention with additional processing steps
  like feed-forward networks,layer normalization, and batch normalization.'''
 class GraphTransformerLayer(nn.Module):
@@ -181,5 +177,5 @@ class GraphTransformerLayer(nn.Module):
         
     def __repr__(self):
         return '{}(in_channels={}, out_channels={}, heads={}, residual={})'.format(self.__class__.__name__,
-                                             self.in_channels,
-                                             self.out_channels, self.num_heads, self.residual)
+                                            self.in_channels,
+                                            self.out_channels, self.num_heads, self.residual)
