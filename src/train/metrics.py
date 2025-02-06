@@ -6,8 +6,11 @@ import os
 
 def save_prediction_analysis(pred_classes, true_classes, phase, epoch, out_dir="out/predictions"):
     """Helper function to save prediction analysis to file"""
-    os.makedirs(out_dir, exist_ok=True)
-    filepath = os.path.join(out_dir, f"{phase}_predictions_epoch_{epoch}.txt")
+    # Create base directory and phase-specific subdirectory
+    
+    phase_dir = os.path.join(out_dir, phase)
+    os.makedirs(phase_dir, exist_ok=True)
+    filepath = os.path.join(phase_dir, f"predictions_epoch_{epoch}.txt")
     
     with open(filepath, 'w') as f:
         # Header
@@ -56,22 +59,24 @@ def accuracy(pred, labels, phase="train", epoch=0):
     Returns:
         accuracy: Classification accuracy as percentage (0-100)
     """
-    print("\npred shape: ",pred[0],pred.shape)
-    # Convert logits to predictions
-    pred_classes = torch.argmax(pred, dim=1)
     
-    # Move tensors to CPU and convert to numpy
-    pred_classes = pred_classes.cpu().numpy()
-    true_classes = labels.cpu().numpy()
-    
-    # print("\pred_classes : ",pred_classes,pred_classes.shape)
-    # print("\ntrue_classes : ",true_classes,true_classes.shape)
-    
-    # Calculate accuracy
-    acc = accuracy_score(true_classes, pred_classes)
-    
-    # Save complete analysis to file
-    save_prediction_analysis(pred_classes, true_classes, phase, epoch)
+    with torch.no_grad():
+        # print("\npred shape: ",pred[0],pred.shape)
+        # Convert logits to predictions
+        pred_classes = torch.argmax(pred, dim=1)
+        
+        # Move tensors to CPU and convert to numpy
+        pred_classes = pred_classes.cpu().numpy()
+        true_classes = labels.cpu().numpy()
+        
+        # print("\pred_classes : ",pred_classes,pred_classes.shape)
+        # print("\ntrue_classes : ",true_classes,true_classes.shape)
+        
+        # Calculate accuracy
+        acc = accuracy_score(true_classes, pred_classes)
+        
+        # Save complete analysis to file
+        save_prediction_analysis(pred_classes, true_classes, phase, epoch)
     
     return acc * 100.0
 

@@ -54,6 +54,7 @@ class MultiHeadAttentionLayer(nn.Module):
             self.V = nn.Linear(in_dim, out_dim * num_heads, bias=False)
             
     def forward(self, g, h):
+
         Q = self.Q(h)  # [num_nodes, out_dim * num_heads]
         K = self.K(h)  # [num_nodes, out_dim * num_heads]
         V = self.V(h)  # [num_nodes, out_dim * num_heads]
@@ -67,13 +68,13 @@ class MultiHeadAttentionLayer(nn.Module):
         # Compute attention scores between subgraphs
         attention_scores = torch.matmul(Q, K.transpose(-2, -1)) / np.sqrt(self.out_dim)
         
-        print("\n=== Attention Layer Statistics ===")
-        print(f"Number of subgraphs: {Q.shape[0]}")
-        print(f"Number of attention heads: {self.num_heads}")
-        print(f"Features per head: {self.out_dim}")
-        print(f"Direct subgraph-to-subgraph attention: {Q.shape[0]}x{K.shape[0]} matrix per head")
-        print(f"Total attention elements: {Q.shape[0] * K.shape[0] * self.num_heads}")
-        print("================================")
+        # print("\n=== Attention Layer Statistics ===")
+        # print(f"Number of subgraphs: {Q.shape[0]}")
+        # print(f"Number of attention heads: {self.num_heads}")
+        # print(f"Features per head: {self.out_dim}")
+        # print(f"Direct subgraph-to-subgraph attention: {Q.shape[0]}x{K.shape[0]} matrix per head")
+        # print(f"Total attention elements: {Q.shape[0] * K.shape[0] * self.num_heads}")
+        # print("================================")
         
         # Apply softmax
         attention_probs = F.softmax(attention_scores, dim=-1)

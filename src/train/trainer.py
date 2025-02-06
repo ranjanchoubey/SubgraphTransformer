@@ -2,6 +2,7 @@
     Utility functions for training one epoch 
     and evaluating one epoch
 """
+# from src.utils.utils import plot_subgraph_comparison
 import torch
 import torch.nn as nn
 import math
@@ -13,16 +14,9 @@ import torch
 
 
 def collate_graphs(batch):
-    """
-    Custom collate function for DGLGraph objects.
-    Args:
-        batch: A list of tuples (graph, labels).
-    Returns:
-        batched_graph: A single batched DGLGraph.
-    """
-    graphs, _ = map(list, zip(*batch))  # Extract graphs from the batch
-    batched_graph = dgl.batch(graphs)  # Batch the graphs into a single graph
-    return batched_graph
+    """Simply return the features tensor."""
+    features, = batch  # Only one item since dataset length is 1
+    return features
 
 def expand_subgraph_predictions(subgraph_scores, node_counts):
     """
@@ -37,6 +31,7 @@ def expand_subgraph_predictions(subgraph_scores, node_counts):
     """
     # Repeat subgraph predictions for each node in the subgraph
     # print("\nbefore populating subgraph prediction: ",subgraph_scores.shape)
+    
     node_prediction = torch.repeat_interleave(subgraph_scores, node_counts, dim=0)
     # print("After populating subgraph prediction : ",node_prediction.shape)
     return node_prediction
@@ -68,20 +63,20 @@ def train_epoch(model, optimizer, device, data_loader, epoch, train_mask, node_l
     epoch_train_acc = 0
 
     # Since the dataset is a single graph, the data_loader will have only one batch
-    for iter, batch_graphs in enumerate(data_loader):
+    for iter, batch_features in enumerate(data_loader):
         # Move data to the device
-        batch_graphs = batch_graphs.to(device)
-        batch_x = batch_graphs.ndata['feat'].to(device)  # Node features
+        batch_features = batch_features.to(device)
         batch_labels = node_labels.to(device)  # Labels for all nodes
 
         # Zero the gradients
         optimizer.zero_grad()
 
         # Forward pass: Get subgraph-level predictions
-        batch_scores = model.forward(batch_graphs, batch_x)  # Shape: [num_subgraphs, num_classes]
+        subgraph_scores = model.forward(batch_features)  # Shape: [num_subgraphs, num_classes]
 
+        # visulaize_subgraph_embedding(subgraph_scores,phase='During_Training')
         # Expand subgraph predictions to all nodes
-        node_prediction = expand_subgraph_predictions(batch_scores, node_counts)  # Shape: [num_nodes, num_classes]
+        node_prediction = expand_subgraph_predictions(subgraph_scores, node_counts)  # Shape: [num_nodes, num_classes]
 
         # Compute loss only for training nodes
         loss = model.loss(node_prediction[train_mask], batch_labels[train_mask])
@@ -94,10 +89,10 @@ def train_epoch(model, optimizer, device, data_loader, epoch, train_mask, node_l
     # Normalize loss and accuracy
     epoch_loss /= (iter + 1)
     epoch_train_acc /= (iter + 1)  # Average accuracy across batches
-
+    print()
     return epoch_loss, epoch_train_acc, optimizer
 
-def  evaluate_network(model, device, data_loader, epoch,test_mask, node_labels,node_counts, phase="val"):
+def  evaluate_network(model, device, data_loader, epoch,test_mask, node_labels,node_counts, phase="val", CompareSubgraphFlag = False):
 
     model.eval()
     epoch_test_loss = 0
@@ -106,15 +101,15 @@ def  evaluate_network(model, device, data_loader, epoch,test_mask, node_labels,n
     with torch.no_grad():
         for iter, batch_graphs in enumerate(data_loader):
             batch_graphs = batch_graphs.to(device)
-            batch_x = batch_graphs.ndata['feat'].to(device)  # Node features
+            # batch_x = batch_graphs.ndata['feat'].to(device)  # Node features
             batch_labels = node_labels.to(device)  # Labels for all nodes
 
             # Forward pass: Get subgraph-level predictions
-            batch_scores = model.forward(batch_graphs, batch_x)  # Shape: [num_subgraphs, num_classes]
+            batch_scores = model.forward(batch_graphs)  # Shape: [num_subgraphs, num_classes]
                     
             # Expand subgraph predictions to all nodes
             node_prediction = expand_subgraph_predictions(batch_scores, node_counts)  # Shape: [num_nodes, num_classes]
-            
+            # print("\n node_prediction : ",node_prediction.shape)
             # Compute loss only for training nodes
             loss = model.loss(node_prediction[test_mask], batch_labels[test_mask])
             
@@ -125,5 +120,7 @@ def  evaluate_network(model, device, data_loader, epoch,test_mask, node_labels,n
         epoch_test_loss /= (iter + 1)
         epoch_test_acc /= (iter + 1)  # Average accuracy across batches
         
+        if CompareSubgraphFlag == True: # for plotting subgraph comparison
+            return node_prediction[test_mask],batch_labels[test_mask]
 
     return epoch_test_loss, epoch_test_acc

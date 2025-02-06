@@ -1,6 +1,6 @@
 dataset/
 notebook/data/
-
+*png
 out/
 outputs/checkpoints/*
 outputs/
@@ -25,3 +25,4 @@ build/
 
 .vscode/
 .vscode
+env

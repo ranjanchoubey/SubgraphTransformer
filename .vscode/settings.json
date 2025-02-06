@@ -1,4 +1,11 @@
+
 {
+    "python.defaultInterpreterPath": "/ranjan/GT/env/bin/python",
+    "jupyter.kernelSpecs": {
+        "gt_kernel": {
+            "path": "/ranjan/GT/env/share/jupyter/kernels/gt_kernel/kernel.json"
+        }
+    },
     "cSpell.words": [
         "ndata",
         "supergraph",

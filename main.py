@@ -3,6 +3,8 @@
 """
 import random
 import sys
+
+
 sys.dont_write_bytecode = True
 
 import numpy as np
@@ -23,10 +25,11 @@ from torch.utils.data import DataLoader
 from src.data.data import LoadData, partition_graph
 from src.data.embedding import mean_pooling, compute_laplacian_positional_embedding, compute_gcn_embeddings
 from src.nets.load_net import gnn_model 
-
+from src.utils.utils import *
 from src.train.trainer import collate_graphs, evaluate_network, train_epoch
-from src.utils.supergraph import  create_DGLSupergraph
-from src.configs.config import load_config
+# from src.utils.supergraph import  create_DGLSupergraph
+from src.utils.supergraph import create_feature_dataset
+# from src.configs.config import load_config
 
 from torch.utils.data import DataLoader
 import dgl
@@ -63,7 +66,7 @@ def view_model_param(MODEL_NAME, net_params):
 """
     TRAINING CODE
 """
-def train_val_pipeline(MODEL_NAME, dataset, params, net_params, dirs,graph,node_labels,node_counts):
+def train_val_pipeline(MODEL_NAME, dataset, params, net_params, dirs,graph,node_labels,node_counts,subgraphs):
 
     start0 = time.time()
     per_epoch_time = []
@@ -85,7 +88,7 @@ def train_val_pipeline(MODEL_NAME, dataset, params, net_params, dirs,graph,node_
     
     # Write the network and optimization hyper-parameters in folder config/
     with open(write_config_file + '.txt', 'w') as f:
-        f.write("""Dataset: {},\nModel: {}\n\nparams={}\n\nnet_params={}\n\n\nTotal Parameters: {}\n\n"""                .format(DATASET_NAME, MODEL_NAME, params, net_params, net_params['total_param']))
+        f.write("""Dataset: {},\nModel: {}\n\nparams={}\n\nnet_params={}\n\n\nTotal Parameters: {}\n\n""".format(DATASET_NAME, MODEL_NAME, params, net_params, net_params['total_param']))
         
     log_dir = os.path.join(root_log_dir, "RUN_" + str(0))
     writer = SummaryWriter(log_dir=log_dir)    
@@ -191,6 +194,94 @@ def train_val_pipeline(MODEL_NAME, dataset, params, net_params, dirs,graph,node_
                   test_acc, train_acc, epoch, (time.time()-start0)/3600, np.mean(per_epoch_time)))
 
 
+
+    
+    print("\n Subgraph Comparison After Model Training :\n")
+    test_node_predictions, test_batch_labels = evaluate_network(model, device, test_loader, epoch,test_mask, node_labels,node_counts, phase="test", CompareSubgraphFlag = True)
+    
+    # Get predicted classes
+    predicted_classes = torch.argmax(test_node_predictions, dim=1)
+    
+    match_count = 0
+    for i in range(len(predicted_classes)):
+        if predicted_classes[i] == test_batch_labels[i]:
+            print(f"node {i} match")
+            match_count = match_count + 1
+    print("match count  = ",match_count)
+        
+    
+    
+    # Example usage - loop through some subgraphs to plot comparisons
+    num_plots = min(5,len(subgraphs))  # Limit number of plots 
+    
+    # Define colors outside the loop
+    distinct_colors = [
+        '#e41a1c', '#377eb8', '#4daf4a', '#984ea3', 
+        '#ff7f00', '#a65628', '#756bb1', '#636363'
+    ]
+    num_colors = len(distinct_colors)
+    
+    for i in range(num_plots):
+        # Calculate indices for this subgraph
+        start_idx = sum(node_counts[:i].cpu().numpy())
+        end_idx = start_idx + node_counts[i].cpu().numpy()
+        
+        # Get predictions and true labels for this subgraph
+        subgraph_predictions = predicted_classes[start_idx:end_idx]
+        subgraph_true_labels = test_batch_labels[start_idx:end_idx]
+        
+        # Create figure
+        plt.figure(figsize=(15, 6))
+        
+        # Get the specific subgraph
+        subgraph = subgraphs[i]
+        G = subgraph.to_networkx().to_undirected()
+        pos = nx.spring_layout(G, k=2/np.sqrt(len(G.nodes())), iterations=50, seed=42)
+
+        # Plot original labels
+        plt.subplot(1, 2, 1)
+        colors = [distinct_colors[int(lab) % num_colors] for lab in subgraph_true_labels.cpu().numpy()]
+        nx.draw_networkx_edges(G, pos, edge_color='black', alpha=0.2, width=0.9)
+        nx.draw_networkx_nodes(G, pos, node_size=100, node_color=colors)
+        plt.title('Original Labels')
+        plt.axis('off')
+
+        # Plot predicted labels  
+        plt.subplot(1, 2, 2)
+        colors = [distinct_colors[int(lab) % num_colors] for lab in subgraph_predictions.cpu().numpy()]
+        nx.draw_networkx_edges(G, pos, edge_color='black', alpha=0.2, width=0.9)
+        nx.draw_networkx_nodes(G, pos, node_size=100, node_color=colors)
+        plt.title('Predicted Labels')
+        plt.axis('off')
+
+        # Add legend
+        unique_labels = torch.unique(subgraph_true_labels)
+        legend_elements = [plt.Line2D([0], [0], marker='o', color='w',
+                                    markerfacecolor=distinct_colors[int(i)],
+                                    label=f'Class {int(i)}',
+                                    markersize=10) 
+                        for i in unique_labels]
+        plt.legend(handles=legend_elements, loc='center left', 
+                bbox_to_anchor=(1, 0.5))
+
+        # Add accuracy information
+        accuracy = (subgraph_predictions == subgraph_true_labels).float().mean().item()
+        plt.suptitle(f'Subgraph {i} Comparison\n'
+                    f'Accuracy: {accuracy:.2%}')
+
+        plt.tight_layout()
+        # save at this directory /ranjan/GT/out/subgraph_prediction/
+        plt.savefig(f'/ranjan/GT/out/subgraph_prediction/test/subgraph{i}', bbox_inches='tight', dpi=300)
+        plt.close()
+        
+    print("\n Subgraph Comparison Completed\n")
+        
+        
+        
+        
+        
+        
+        
 
 def main():
     """
@@ -335,13 +426,7 @@ def main():
     print("\n" + "="*50)
     print("Step 1: Loading Configuration")
     print("="*50)
-    # set_seed(config.training.seed)
-    random.seed(params['seed'])
-    np.random.seed(params['seed'])
-    torch.manual_seed(params['seed'])
-    if device.type == 'cuda':
-        torch.cuda.manual_seed(params['seed'])
-        
+    set_seed(params['seed'])        
     print("✓ Configuration loaded successfully")
     
     
@@ -394,12 +479,22 @@ def main():
         if (i + 1) % 10 == 0:
             print(f"Processed {i+1}/{len(subgraphs)} subgraphs")
 
+    print("✓ Embeddings computed successfully")
     # Stack and move to device
     subgraph_embeddings = torch.stack(subgraph_embeddings).to(device)
     lpe_embeddings = torch.stack(lpe_embeddings).to(device)
     
     node_labels = torch.cat(node_labels, dim=0).to(device)
     node_counts = torch.tensor(node_counts).to(device)
+    
+    #With node id index, store "node_labels" and "graph.ndata['label']" side by side in a text file to compare later
+    with open('out/node_labels.txt', 'w') as f:
+        for i in range(len(node_indices)):
+            f.write(f"Subgraph {i}:\n")
+            for j in range(len(node_indices[i])):
+                node_idx = node_indices[i][j]
+                f.write(f"Node {node_idx}: Partition Label={node_labels[node_idx]}, Graph Label={graph.ndata['label'][node_idx]}\n")
+            f.write("\n")
     
     print("\n" + "="*50)
     print("Step 5: Final Statistics")
@@ -409,17 +504,18 @@ def main():
     print(f"LPE embedding shape: {lpe_embeddings.shape}")
     print(f"Average nodes per subgraph: {torch.mean(node_counts.float()):.2f}")
     
-    # Fix the function call
+    # add embeddings
     combined_embedding = subgraph_embeddings + lpe_embeddings
-    supergraph = create_DGLSupergraph(combined_embedding)
+    dataset = create_feature_dataset(combined_embedding)
     
 
     
-    dataset = supergraph
+    
+    # dataset = supergraph
      # size = [subgraph * embedding dimension]
     
     net_params['total_param'] = view_model_param(MODEL_NAME, net_params)
-    train_val_pipeline(MODEL_NAME, dataset, params, net_params, dirs,graph,node_labels,node_counts)
+    train_val_pipeline(MODEL_NAME, dataset, params, net_params, dirs,graph,node_labels,node_counts,subgraphs)
 
 
 #     # print("\n🎉 Training Complete!")

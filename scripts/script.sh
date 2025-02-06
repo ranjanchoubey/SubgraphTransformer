@@ -8,6 +8,8 @@ python main.py  --dataset Cora   --config 'src/configs/default_config.json' --gp
 
 # I am using other project env for now, to activate use below command
 source  /ranjan/graphtransformer/env/bin/activate
+# OR
+source /ranjan/GT/env/bin/activate
 
 # to print directory structure
 tree -I 'out|dataset'

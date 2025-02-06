@@ -8,17 +8,13 @@ from sklearn.metrics import f1_score, accuracy_score
 
 
 def visualize_graph(graph):
-        
     plt.figure(figsize=(15, 10))
     
-    # Create networkx graph
-    G = nx.Graph()
-    edge_index = graph.edge_index.numpy()
-    edges = list(zip(edge_index[0], edge_index[1]))
-    G.add_edges_from(edges)
+    # Create networkx graph from DGL graph
+    G = graph.to_networkx().to_undirected()
     
-    # Get node labels
-    labels = graph.y.numpy()
+    # Get node labels - for DGL graph
+    labels = graph.ndata['label'].numpy()
     unique_labels = np.unique(labels)
     
     # Strong colors for nodes
@@ -33,10 +29,10 @@ def visualize_graph(graph):
     pos = nx.spring_layout(G, k=2/np.sqrt(len(G.nodes())), iterations=100, seed=42)
     
     # Draw edges FIRST with darker color
-    nx.draw_networkx_edges(G, pos,edge_color='#000000',alpha=0.20,width=0.9)
+    nx.draw_networkx_edges(G, pos, edge_color='#000000', alpha=0.20, width=0.9)
     
     # Draw nodes SECOND
-    nodes = nx.draw_networkx_nodes(G, pos,node_size=15, node_color=node_colors, edgecolors='white',linewidths=0.2)
+    nodes = nx.draw_networkx_nodes(G, pos, node_size=15, node_color=node_colors, edgecolors='white', linewidths=0.2)
     
     # Legend
     legend_elements = [plt.Line2D([0], [0],
@@ -47,15 +43,14 @@ def visualize_graph(graph):
                                 markersize=10,
                                 markeredgecolor='white') for i in range(len(unique_labels))]
     
-    plt.legend(handles=legend_elements,loc='center left',bbox_to_anchor=(1, 0.5),frameon=True,facecolor='white')
+    plt.legend(handles=legend_elements, loc='center left', bbox_to_anchor=(1, 0.5), frameon=True, facecolor='white')
     
     plt.title(f'Cora Citation Network'
-            f'\nNodes: {G.number_of_nodes()}, '
-            f'\nEdges: {G.number_of_edges()}'
-            f'\nFeatures per node: {graph.x.size(1)}, '
-            f'\nNumber of classes: {len(torch.unique(graph.y))}'
-            f'\ndata format :{graph}')
-    
+             f'\nNodes: {graph.number_of_nodes()}, '
+             f'\nEdges: {graph.number_of_edges()}'
+             f'\nFeatures per node: {graph.ndata["feat"].shape[1]}, '
+             f'\nNumber of classes: {len(torch.unique(graph.ndata["label"]))}'
+             f'\ndata format: {graph}')
     
     plt.axis('off')
     plt.tight_layout()
@@ -161,3 +156,4 @@ def calculate_masked_metrics(predictions, true_labels):
     print()
     # print("true_labels : ",true_labels,true_labels.shape)
     return calculate_metrics(true_labels.cpu().numpy(), predicted_classes.cpu().numpy())
+

@@ -85,6 +85,22 @@ class GraphTransformerNet(nn.Module):
         h_out = self.MLP_layer(h)
 
         return h_out
+
+    def forward(self, features, *args):
+        """
+        Forward pass using just features.
+        Args:
+            features: Subgraph features [num_subgraphs, in_dim]
+        """
+        h = self.input_proj(features)
+        h = self.in_feat_dropout(h)
+        
+        # GraphTransformer Layers
+        for layer in self.layers:
+            h = layer(None, h)  # None for graph since we don't use it
+            
+        h_out = self.MLP_layer(h)
+        return h_out
     
     
     def loss(self, pred, label):
