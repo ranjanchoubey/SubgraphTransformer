@@ -12,7 +12,7 @@ def LoadData(DATASET_NAME):
     if DATASET_NAME == 'Cora':  
         graph = dgl.data.CoraGraphDataset()
         dataset = graph[0]
-        print(f"Dataset Loaded: Cora, Number of nodes: {dataset.number_of_nodes()}")
+        # print(f"Dataset Loaded: Cora, Number of nodes: {dataset.number_of_nodes()}")
         
         return dataset
     
@@ -38,5 +38,5 @@ def partition_graph(graph, num_parts=4):
         subgraph = dgl.node_subgraph(graph, node_mask)
         subgraphs.append(subgraph)
     
-    print(f"Graph partitioned into {num_parts} subgraphs.")
+    # print(f"Graph partitioned into {num_parts} subgraphs.")
     return subgraphs

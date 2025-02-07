@@ -15,9 +15,9 @@ class GraphTransformerNet(nn.Module):
 
     def __init__(self, net_params):
         super().__init__()
-        print("===============")
-        print("GraphTransformerNet init : net_params", net_params)
-        print("===============")
+        # print("===============")
+        # print("GraphTransformerNet init : net_params", net_params)
+        # print("===============")
         
         in_dim_node = net_params['in_dim'] # node_dim (feat is an integer)
         hidden_dim = net_params['hidden_dim']

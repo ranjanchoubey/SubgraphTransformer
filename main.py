@@ -59,7 +59,7 @@ def view_model_param(MODEL_NAME, net_params):
     for param in model.parameters():
         # print(param.data.size())
         total_param += np.prod(list(param.data.size()))
-    print('MODEL/Total parameters:', MODEL_NAME, total_param)
+    # print('MODEL/Total parameters:', MODEL_NAME, total_param)
     return total_param
 
 
@@ -77,7 +77,7 @@ def train_val_pipeline(MODEL_NAME, dataset, params, net_params, dirs,graph,node_
     train_mask = graph.ndata['train_mask']
     val_mask = graph.ndata['val_mask']
     test_mask = graph.ndata['test_mask']
-    print("train_mask : ",train_mask.shape)
+    # print("train_mask : ",train_mask.shape)
     
     trainset = dataset
     valset = dataset
@@ -204,8 +204,8 @@ def train_val_pipeline(MODEL_NAME, dataset, params, net_params, dirs,graph,node_
     
     match_count = 0
     for i in range(len(predicted_classes)):
+        # print("True Label : ",test_batch_labels[i].item()," Predicted Label : ",predicted_classes[i].item())
         if predicted_classes[i] == test_batch_labels[i]:
-            print(f"node {i} match")
             match_count = match_count + 1
     print("match count  = ",match_count)
         
@@ -276,12 +276,7 @@ def train_val_pipeline(MODEL_NAME, dataset, params, net_params, dirs,graph,node_
         
     print("\n Subgraph Comparison Completed\n")
         
-        
-        
-        
-        
-        
-        
+   
 
 def main():
     """
@@ -320,6 +315,7 @@ def main():
     parser.add_argument('--lap_pos_enc', help="Please give a value for lap_pos_enc")
     parser.add_argument('--wl_pos_enc', help="Please give a value for wl_pos_enc")
     args = parser.parse_args()
+    print(args)
     
     with open(args.config) as f:
         config = json.load(f)

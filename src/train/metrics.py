@@ -59,10 +59,12 @@ def accuracy(pred, labels, phase="train", epoch=0):
     Returns:
         accuracy: Classification accuracy as percentage (0-100)
     """
-    
     with torch.no_grad():
         # print("\npred shape: ",pred[0],pred.shape)
         # Convert logits to predictions
+        # `torch.argmax(pred, dim=1)` is a PyTorch function that returns the indices of
+        # the maximum value along a specified dimension `dim=1` in the input tensor
+        # `pred`.
         pred_classes = torch.argmax(pred, dim=1)
         
         # Move tensors to CPU and convert to numpy
@@ -71,6 +73,11 @@ def accuracy(pred, labels, phase="train", epoch=0):
         
         # print("\pred_classes : ",pred_classes,pred_classes.shape)
         # print("\ntrue_classes : ",true_classes,true_classes.shape)
+        
+        # print side by side predictions and true classes for each node in the batch in phase(train/val/test) wise 
+        print(f"=== Prediction Analysis ({phase}) ===")
+        for i in range(len(pred_classes)):
+            print(f"Node {i}: True: {true_classes[i]}, Pred: {pred_classes[i]}")
         
         # Calculate accuracy
         acc = accuracy_score(true_classes, pred_classes)

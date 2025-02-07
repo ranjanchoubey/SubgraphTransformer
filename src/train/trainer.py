@@ -18,7 +18,7 @@ def collate_graphs(batch):
     features, = batch  # Only one item since dataset length is 1
     return features
 
-def expand_subgraph_predictions(subgraph_scores, node_counts):
+def expand_subgraph_predictions(subgraph_scores, node_counts,phase = None):
     """
     Expands subgraph-level predictions to all nodes in the graph.
     
@@ -32,7 +32,8 @@ def expand_subgraph_predictions(subgraph_scores, node_counts):
     # Repeat subgraph predictions for each node in the subgraph
     # print("\nbefore populating subgraph prediction: ",subgraph_scores.shape)
     
-    node_prediction = torch.repeat_interleave(subgraph_scores, node_counts, dim=0)
+    node_prediction = torch.repeat_interleave(subgraph_scores, node_counts, dim=0) # The `repeat_interleave` function in PyTorch is used to repeat elements
+    # of a tensor along a specified dimension.
     # print("After populating subgraph prediction : ",node_prediction.shape)
     return node_prediction
 
@@ -76,8 +77,10 @@ def train_epoch(model, optimizer, device, data_loader, epoch, train_mask, node_l
 
         # visulaize_subgraph_embedding(subgraph_scores,phase='During_Training')
         # Expand subgraph predictions to all nodes
-        node_prediction = expand_subgraph_predictions(subgraph_scores, node_counts)  # Shape: [num_nodes, num_classes]
+        node_prediction = expand_subgraph_predictions(subgraph_scores, node_counts,phase = 'train')  # Shape: [num_nodes, num_classes]
 
+        # print("\n node_prediction : ",node_prediction,node_prediction.shape)
+        
         # Compute loss only for training nodes
         loss = model.loss(node_prediction[train_mask], batch_labels[train_mask])
         

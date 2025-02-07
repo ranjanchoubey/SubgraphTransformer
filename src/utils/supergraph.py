@@ -20,11 +20,11 @@ class SuperGraphDataset(DGLDataset):
         return 1
 
 def create_feature_dataset(combined_embedding):
-    """Create dataset from combined embeddings without graph structure."""
-    print(f"\n ------ Feature Dataset Statistics:------------")
-    print(f"Number of subgraphs: {combined_embedding.shape[0]}")
-    print(f"Feature dimension: {combined_embedding.shape[1]}")
-    print(f"Device: {combined_embedding.device}")
+    # """Create dataset from combined embeddings without graph structure."""
+    # print(f"\n ------ Feature Dataset Statistics:------------")
+    # print(f"Number of subgraphs: {combined_embedding.shape[0]}")
+    # print(f"Feature dimension: {combined_embedding.shape[1]}")
+    # print(f"Device: {combined_embedding.device}")
     
     dataset = SuperGraphDataset(combined_embedding)
     return dataset
