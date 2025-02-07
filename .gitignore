@@ -23,6 +23,6 @@ htmlcov/
 dist/
 build/
 
-.vscode/
+.vscode
 .vscode
 env
