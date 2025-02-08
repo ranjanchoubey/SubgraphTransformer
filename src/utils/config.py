@@ -1,15 +1,6 @@
 import json
 
 def load_config(config_file='src/configs/default_config.json'):
-    """
-    Load configuration file from the specified path.
-    
-    Parameters:
-        config_file (str): Path to the JSON configuration file.
-        
-    Returns:
-        dict: Configuration dictionary loaded from the file.
-    """
     with open(config_file) as f:
         config = json.load(f)
     return config

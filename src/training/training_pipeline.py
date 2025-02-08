@@ -10,6 +10,7 @@ from torch.utils.data import DataLoader
 from torch import optim
 from src.models.networks.load_net import gnn_model
 from src.training.train_evaluate import collate_graphs, evaluate_network, train_epoch
+from src.utils.visualization import visualize_subgraph
 
 
 def train_val_pipeline(MODEL_NAME, dataset, params, net_params, dirs,train_mask,val_mask,test_mask, node_labels,node_counts,subgraphs):
@@ -49,7 +50,7 @@ def train_val_pipeline(MODEL_NAME, dataset, params, net_params, dirs,train_mask,
     train_loader = DataLoader(trainset, batch_size=params['batch_size'], shuffle=True, collate_fn=collate_graphs)
     val_loader = DataLoader(valset, batch_size=params['batch_size'], shuffle=False, collate_fn=collate_graphs)
     test_loader = DataLoader(testset, batch_size=params['batch_size'], shuffle=False, collate_fn=collate_graphs)
-    # print("******** train_loader *********",len(train_loader)) # it is 1
+
 
     # At any point you can hit Ctrl + C to break out of training early.
     try:
@@ -62,8 +63,8 @@ def train_val_pipeline(MODEL_NAME, dataset, params, net_params, dirs,train_mask,
                 
                 epoch_train_loss, epoch_train_acc, optimizer = train_epoch(model, optimizer, device, train_loader, epoch, train_mask,node_labels,node_counts)                
 
-                epoch_val_loss, epoch_val_acc = evaluate_network(model, device, val_loader, epoch,  val_mask, node_labels, node_counts, phase="val")
-                _, epoch_test_acc = evaluate_network(model, device, test_loader, epoch, test_mask, node_labels, node_counts, phase="test")                    
+                epoch_val_loss, epoch_val_acc = evaluate_network(model, device, val_loader, epoch,  val_mask, node_labels, node_counts,phase="val")
+                _, epoch_test_acc = evaluate_network(model, device, test_loader, epoch, test_mask, node_labels, node_counts,phase="test")                    
 
                 epoch_train_losses.append(epoch_train_loss)
                 epoch_val_losses.append(epoch_val_loss)
@@ -113,8 +114,8 @@ def train_val_pipeline(MODEL_NAME, dataset, params, net_params, dirs,train_mask,
         print('-' * 89)
         print('Exiting from training early because of KeyboardInterrupt')
 
-    _, test_acc = evaluate_network(model, device, test_loader, epoch,test_mask, node_labels,node_counts)
-    _, train_acc = evaluate_network(model, device, train_loader, epoch,train_mask, node_labels,node_counts)
+    _, test_acc = evaluate_network(model, device, test_loader, epoch,test_mask, node_labels,node_counts,phase="test")
+    _, train_acc = evaluate_network(model, device, train_loader, epoch,train_mask, node_labels,node_counts,phase="train")
     print("Test Accuracy: {:.4f}".format(test_acc))
     print("Train Accuracy: {:.4f}".format(train_acc))
     print("Convergence Time (Epochs): {:.4f}".format(epoch))
@@ -132,3 +133,11 @@ def train_val_pipeline(MODEL_NAME, dataset, params, net_params, dirs,train_mask,
     Convergence Time (Epochs): {:.4f}\nTotal Time Taken: {:.4f} hrs\nAverage Time Per Epoch: {:.4f} s\n\n\n"""\
           .format(DATASET_NAME, MODEL_NAME, params, net_params, model, net_params['total_param'],
                   test_acc, train_acc, epoch, (time.time()-start0)/3600, np.mean(per_epoch_time)))
+
+
+    print("\n *** Plotting Subgraph Comparison After Model Training .... ***\n")
+    node_prediction, node_labels = evaluate_network(model, device, test_loader, epoch,test_mask, node_labels,node_counts,phase="test",comapreSubgraph=True)
+    
+    visualize_subgraph(node_prediction, node_labels,node_counts,subgraphs)
+    
+
