@@ -3,6 +3,7 @@ import networkx as nx
 import torch
 import os
 from matplotlib import pyplot as plt
+import shutil  # For removing directories
 
 def visualize_subgraph(node_prediction, node_labels, node_counts, subgraphs):
     """
@@ -18,10 +19,10 @@ def visualize_subgraph(node_prediction, node_labels, node_counts, subgraphs):
     # Get predicted classes for each node.
     prediction = torch.argmax(node_prediction, dim=1)
     labels = node_labels
-    num_plots = max(5, len(subgraphs))
-    
+    num_plots = min(5, len(subgraphs))  # visualize at most 5 subgraphs
+
     distinct_colors = [
-        '#e41a1c', '#377eb8', '#4daf4a', '#984ea3', 
+        '#e41a1c', '#377eb8', '#4daf4a', '#984ea3',
         '#ff7f00', '#a65628', '#756bb1', '#636363'
     ]
     num_colors = len(distinct_colors)
@@ -29,7 +30,18 @@ def visualize_subgraph(node_prediction, node_labels, node_counts, subgraphs):
     # Define the directory to save visualizations.
     save_dir = os.path.abspath(os.path.join(os.getcwd(), 'out', 'visualize'))
     os.makedirs(save_dir, exist_ok=True)
-
+    
+    # Flush the folder: remove all files and subdirectories in save_dir.
+    for filename in os.listdir(save_dir):
+        file_path = os.path.join(save_dir, filename)
+        try:
+            if os.path.isfile(file_path) or os.path.islink(file_path):
+                os.unlink(file_path)  # remove the file
+            elif os.path.isdir(file_path):
+                shutil.rmtree(file_path)  # remove the directory and its contents
+        except Exception as e:
+            print(f'Failed to delete {file_path}. Reason: {e}')
+    
     for i in range(num_plots):
         start_idx = sum(node_counts[:i].cpu().numpy())
         end_idx = start_idx + node_counts[i].cpu().numpy()
@@ -83,9 +95,11 @@ def visualize_subgraph(node_prediction, node_labels, node_counts, subgraphs):
         plt.suptitle(f'Subgraph {i} Comparison\nAccuracy: {accuracy_val:.2%}')
         plt.tight_layout()
     
-        # Save the figure.
+        # Save the figure with a .png extension.
         save_path = os.path.join(save_dir, f'subgraph{i}.png')
         plt.savefig(save_path, bbox_inches='tight', dpi=300)
         plt.close()
         
-    print("\nSubgraph Comparison Completed\n")
+
+    print("\n✓ Plotting Subgraph Complete !!! \n")
+    print(f"Visualizations saved in {save_dir}")
