@@ -75,9 +75,9 @@ def accuracy(pred, labels, phase="train", epoch=0):
         # print("\ntrue_classes : ",true_classes,true_classes.shape)
         
         # print side by side predictions and true classes for each node in the batch in phase(train/val/test) wise 
-        print(f"=== Prediction Analysis ({phase}) ===")
-        for i in range(len(pred_classes)):
-            print(f"Node {i}: True: {true_classes[i]}, Pred: {pred_classes[i]}")
+        # print(f"=== Prediction Analysis ({phase}) ===")
+        # for i in range(len(pred_classes)):
+        #     print(f"Node {i}: True: {true_classes[i]}, Pred: {pred_classes[i]}")
         
         # Calculate accuracy
         acc = accuracy_score(true_classes, pred_classes)
@@ -86,6 +86,38 @@ def accuracy(pred, labels, phase="train", epoch=0):
         save_prediction_analysis(pred_classes, true_classes, phase, epoch)
     
     return acc * 100.0
+
+
+
+
+
+
+
+def calculate_metrics(y_true, y_pred):
+    """Calculate accuracy and macro-F1 score."""
+    accuracy = accuracy_score(y_true, y_pred)
+    # f1_macro = f1_score(y_true, y_pred, average='macro', zero_division=0)
+    
+    return {
+        'accuracy': 100. * accuracy
+    }
+
+def print_metrics(metrics, prefix=""):
+    """Print metrics in a standard format."""
+    print(f"\n{prefix}:")
+    print(f"  Accuracy: {metrics['accuracy']:.2f}%")
+    print(f"  Macro-F1: {metrics['f1_macro']:.2f}%")
+
+def calculate_masked_metrics(predictions, true_labels):
+    """Calculate metrics for masked nodes."""
+    # print(",predictions : ",predictions,predictions.shape)
+    predicted_classes = torch.argmax(predictions,dim=1)
+    # print("After predicted_classes : ",predicted_classes,predicted_classes.shape)
+    print()
+    # print("true_labels : ",true_labels,true_labels.shape)
+    return calculate_metrics(true_labels.cpu().numpy(), predicted_classes.cpu().numpy())
+
+
 
 
 

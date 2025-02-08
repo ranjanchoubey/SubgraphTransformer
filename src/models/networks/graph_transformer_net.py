@@ -8,8 +8,8 @@ import dgl
     Graph Transformer
     
 """
-from src.layers.graph_transformer_layer import GraphTransformerLayer
-from src.layers.mlp_readout_layer import MLPReadout
+from src.models.layers.graph_transformer_layer import GraphTransformerLayer
+from src.models.layers.mlp_readout_layer import MLPReadout
 
 class GraphTransformerNet(nn.Module):
 

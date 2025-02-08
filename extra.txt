@@ -1,5 +1,0 @@
-I have Created symbolic link fror virtual env
-ln -s /ranjan/graphtransformer/env /ranjan/GT/env
-
-# Activate virtual environment from new location
-source /ranjan/GT/env/bin/activate

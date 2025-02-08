@@ -3,7 +3,7 @@
     selected by the user
 """
 
-from src.nets.graph_transformer_net import GraphTransformerNet
+from src.models.networks.graph_transformer_net import GraphTransformerNet
 
 def GraphTransformer(net_params):
     return GraphTransformerNet(net_params)

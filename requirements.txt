@@ -1,1 +1,14 @@
--e .
+tensorboardX
+matplotlib
+scikit-learn
+tabulate
+
+
+
+# For DGL with Pytorch Installation: Visit https://www.dgl.ai/pages/start.html and select below compatibility
+#PyTorch : 2.4.x
+#CUDA : 11.8
+#Package : Pip(Stable)
+#OS : Linux
+#pip install  dgl -f https://data.dgl.ai/wheels/torch-2.4/cu118/repo.html
+
