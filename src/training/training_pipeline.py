@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 from torch import optim
 from src.models.networks.load_net import gnn_model
 from src.training.train_evaluate import collate_graphs, evaluate_network, train_epoch
-from src.utils.visualization import visualize_subgraph
+from src.utils.visualization import plot_train_val_curves, visualize_subgraph
 
 
 def train_val_pipeline(MODEL_NAME, dataset, params, net_params, dirs,train_mask,val_mask,test_mask, node_labels,node_counts,subgraphs):
@@ -134,8 +134,10 @@ def train_val_pipeline(MODEL_NAME, dataset, params, net_params, dirs,train_mask,
           .format(DATASET_NAME, MODEL_NAME, params, net_params, model, net_params['total_param'],
                   test_acc, train_acc, epoch, (time.time()-start0)/3600, np.mean(per_epoch_time)))
 
-
-    # Uncomment to visualize subgraph comparison
+    # Plot training and validation curves.
+    plot_train_val_curves(epoch_train_losses, epoch_val_losses, epoch_train_accs, epoch_val_accs)
+    
+    # visualize subgraph comparison
     print("\nPlotting Subgraph ....\n")
     node_prediction, node_labels = evaluate_network(model, device, test_loader, epoch,test_mask, node_labels,node_counts,phase="test",comapreSubgraph=True)
     visualize_subgraph(node_prediction, node_labels,node_counts,subgraphs)

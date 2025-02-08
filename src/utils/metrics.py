@@ -4,7 +4,7 @@ from sklearn.metrics import accuracy_score, confusion_matrix
 from tabulate import tabulate
 import os
 
-def save_prediction_analysis(true_classes,pred_classes, phase, epoch, out_dir="out/predictions"):
+def save_prediction_analysis(true_classes,pred_classes, phase, epoch, out_dir="out/raw_predictions"):
     """
         Helper function to save prediction analysis to file
     """

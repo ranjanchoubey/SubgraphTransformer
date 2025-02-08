@@ -33,7 +33,7 @@
   "dropout": 0.01,
   "layer_norm": false,
   "batch_norm": true,
-  "self_loop": false,
+  "self_loop": true,
   "lap_pos_enc": false,
   "pos_enc_dim": 8,
   "wl_pos_enc": false,
@@ -43,14 +43,14 @@
 
 "data":
 {
-  "num_parts":20
+  "num_parts":80
 },
 
 "gcn":
 {
   "input_dim":1433,
-  "hidden_dim":64,
-  "output_dim":16
+  "hidden_dim":256,
+  "output_dim":32
 }
 
 

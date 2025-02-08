@@ -5,6 +5,71 @@ import os
 from matplotlib import pyplot as plt
 import shutil  # For removing directories
 
+
+import os
+import matplotlib.pyplot as plt
+
+def plot_train_val_curves(epoch_train_losses, epoch_val_losses, epoch_train_accs, epoch_val_accs):
+    """
+    Plot the training and validation loss and accuracy curves,
+    and annotate the final loss and accuracy values on the plots.
+    
+    Args:
+        epoch_train_losses (list): List of training losses for each epoch.
+        epoch_val_losses (list): List of validation losses for each epoch.
+        epoch_train_accs (list): List of training accuracies for each epoch.
+        epoch_val_accs (list): List of validation accuracies for each epoch.
+    """
+    epochs = range(1, len(epoch_train_losses) + 1)
+    
+    # Create a figure with two subplots.
+    plt.figure(figsize=(12, 5))
+    
+    # Plot Loss Curves.
+    ax1 = plt.subplot(1, 2, 1)
+    ax1.plot(epochs, epoch_train_losses, 'b-', label='Train Loss')
+    ax1.plot(epochs, epoch_val_losses, 'r-', label='Validation Loss')
+    ax1.set_xlabel('Epochs')
+    ax1.set_ylabel('Loss')
+    ax1.set_title('Train vs. Validation Loss')
+    ax1.legend()
+    # Annotate the final loss values.
+    ax1.text(epochs[-1], epoch_train_losses[-1],
+             f'{epoch_train_losses[-1]:.4f}', fontsize=10, color='blue', ha='right', va='bottom')
+    ax1.text(epochs[-1], epoch_val_losses[-1],
+             f'{epoch_val_losses[-1]:.4f}', fontsize=10, color='red', ha='right', va='bottom')
+    
+    # Plot Accuracy Curves.
+    ax2 = plt.subplot(1, 2, 2)
+    ax2.plot(epochs, epoch_train_accs, 'b-', label='Train Accuracy')
+    ax2.plot(epochs, epoch_val_accs, 'r-', label='Validation Accuracy')
+    ax2.set_xlabel('Epochs')
+    ax2.set_ylabel('Accuracy')
+    ax2.set_title('Train vs. Validation Accuracy')
+    ax2.legend()
+    # Annotate the final accuracy values (formatted as percentages).
+    ax2.text(epochs[-1], epoch_train_accs[-1],
+            f'{epoch_train_accs[-1]:.2f}%', fontsize=10, color='blue', ha='right', va='bottom')
+    ax2.text(epochs[-1], epoch_val_accs[-1],
+            f'{epoch_val_accs[-1]:.2f}%', fontsize=10, color='red', ha='right', va='bottom')
+
+
+    
+    plt.tight_layout()
+    
+    # Define the output directory and filename.
+    out_dir = os.path.abspath(os.path.join(os.getcwd(), 'out'))
+    os.makedirs(out_dir, exist_ok=True)
+    
+    # Use a constant filename to overwrite the same image each time.
+    plot_save_path = os.path.join(out_dir, 'train_val_curves.png')
+    
+    plt.savefig(plot_save_path, bbox_inches='tight', dpi=300)
+    plt.show()
+
+
+
+
 def visualize_subgraph(node_prediction, node_labels, node_counts, subgraphs):
     """
     Visualize the subgraph comparison between predicted and actual labels.
@@ -19,7 +84,7 @@ def visualize_subgraph(node_prediction, node_labels, node_counts, subgraphs):
     # Get predicted classes for each node.
     prediction = torch.argmax(node_prediction, dim=1)
     labels = node_labels
-    num_plots = min(5, len(subgraphs))  # visualize at most 5 subgraphs
+    num_plots = min(10, len(subgraphs))  # visualize at most 10 subgraphs
 
     distinct_colors = [
         '#e41a1c', '#377eb8', '#4daf4a', '#984ea3',
@@ -28,7 +93,7 @@ def visualize_subgraph(node_prediction, node_labels, node_counts, subgraphs):
     num_colors = len(distinct_colors)
     
     # Define the directory to save visualizations.
-    save_dir = os.path.abspath(os.path.join(os.getcwd(), 'out', 'visualize'))
+    save_dir = os.path.abspath(os.path.join(os.getcwd(), 'out', 'visualize_subgraph'))
     os.makedirs(save_dir, exist_ok=True)
     
     # Flush the folder: remove all files and subdirectories in save_dir.
@@ -92,7 +157,9 @@ def visualize_subgraph(node_prediction, node_labels, node_counts, subgraphs):
         plt.legend(handles=legend_elements, loc='center left', bbox_to_anchor=(1, 0.5))
     
         accuracy_val = (subgraph_predictions == subgraph_true_labels).float().mean().item()
-        plt.suptitle(f'Subgraph {i} Comparison\nAccuracy: {accuracy_val:.2%}')
+        # Get the number of nodes in the subgraph. If node_counts[i] is a tensor, convert it to a scalar.
+        num_nodes_in_subgraph = node_counts[i].item() if hasattr(node_counts[i], 'item') else node_counts[i]
+        plt.suptitle(f'Subgraph {i} Comparison\nAccuracy: {accuracy_val:.2%} | Nodes: {num_nodes_in_subgraph}')
         plt.tight_layout()
     
         # Save the figure with a .png extension.
@@ -100,6 +167,5 @@ def visualize_subgraph(node_prediction, node_labels, node_counts, subgraphs):
         plt.savefig(save_path, bbox_inches='tight', dpi=300)
         plt.close()
         
-
-    print("\n✓ Plotting Subgraph Complete !!! \n")
+    print("\n✓ Subgraph Plotting Complete !!! \n")
     print(f"Visualizations saved in {save_dir}")
