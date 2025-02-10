@@ -19,6 +19,10 @@ python main.py  --dataset CoraSmall   --config 'configs/cora_small.json' --gpu_i
 # for CoraFull dataset
 python main.py  --dataset CoraFull   --config 'configs/cora_full.json' --gpu_id 0
 
+# for citeseer dataset
+python main.py  --dataset Citeseer   --config 'configs/citeseer.json' --gpu_id 0
+
+python main.py  --dataset Pubmed   --config 'configs/pubmed.json' --gpu_id 0
 
 
 

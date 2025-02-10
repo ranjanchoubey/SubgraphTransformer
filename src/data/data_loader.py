@@ -2,6 +2,7 @@ import dgl
 import os
 import torch
 import numpy as np
+from dgl.data import CiteseerGraphDataset, PubmedGraphDataset
 
 from src.data.train_test_splitting import create_mask_splits
 
@@ -41,3 +42,46 @@ def LoadData(DATASET_NAME):
         dataset.ndata['test_mask'] = test_mask
         
         return dataset
+
+    elif DATASET_NAME == "Citeseer":
+        print("\nLoading Citeseer Dataset...")
+        dataset = CiteseerGraphDataset(raw_dir=dataset_dir)  # Added raw_dir parameter
+        graph = dataset[0]
+        
+        # Add self-loops
+        graph = dgl.remove_self_loop(graph)
+        graph = dgl.add_self_loop(graph)
+        
+        # Ensure features are float tensors
+        graph.ndata['feat'] = graph.ndata['feat'].float()
+        graph.ndata['label'] = graph.ndata['label']
+        
+        print(f"Number of nodes: {graph.number_of_nodes()}")
+        print(f"Number of edges: {graph.number_of_edges()}")
+        print(f"Number of classes: {len(torch.unique(graph.ndata['label']))}")
+        print(f"Node feature dim: {graph.ndata['feat'].shape[1]}")
+        
+        return graph
+
+    elif DATASET_NAME == "Pubmed":
+        print("\nLoading Pubmed Dataset...")
+        dataset = PubmedGraphDataset(raw_dir=dataset_dir)
+        graph = dataset[0]
+        
+        # Add self-loops
+        graph = dgl.remove_self_loop(graph)
+        graph = dgl.add_self_loop(graph)
+        
+        # Ensure features are float tensors
+        graph.ndata['feat'] = graph.ndata['feat'].float()
+        graph.ndata['label'] = graph.ndata['label']
+        
+        print(f"Number of nodes: {graph.number_of_nodes()}")
+        print(f"Number of edges: {graph.number_of_edges()}")
+        print(f"Number of classes: {len(torch.unique(graph.ndata['label']))}")
+        print(f"Node feature dim: {graph.ndata['feat'].shape[1]}")
+        
+        return graph
+    
+    else:
+        raise ValueError(f"Unrecognized dataset: {DATASET_NAME}")
