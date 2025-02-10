@@ -10,9 +10,12 @@ def mean_pooling(embeddings):
     Args:
         embeddings: Tensor of node embeddings.
     Returns:
-        token_embedding: Mean-pooled feature vector of size [num_features].
+        token_embedding: Mean-pooled feature vector.
     """
-    # This function remains the same as it works with regular tensors
+    # Get mean across all dimensions if 1D
+    if len(embeddings.shape) == 1:
+        return embeddings.mean().unsqueeze(0)
+    # Get mean across nodes (first dimension) if 2D
     return torch.mean(embeddings, dim=0)
 
 def compute_laplacian_positional_embedding(subgraph, embedding_dim=16):
