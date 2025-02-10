@@ -138,8 +138,8 @@ def train_val_pipeline(MODEL_NAME, dataset, params, net_params, dirs,train_mask,
     plot_train_val_curves(epoch_train_losses, epoch_val_losses, epoch_train_accs, epoch_val_accs)
     
     # visualize subgraph comparison
-    print("\nPlotting Subgraph ....\n")
-    node_prediction, node_labels = evaluate_network(model, device, test_loader, epoch,test_mask, node_labels,node_counts,phase="test",comapreSubgraph=True)
-    visualize_subgraph(node_prediction, node_labels,node_counts,subgraphs)
+    # print("\nPlotting Subgraph ....\n")
+    # node_prediction, node_labels = evaluate_network(model, device, test_loader, epoch,test_mask, node_labels,node_counts,phase="test",comapreSubgraph=True)
+    # visualize_subgraph(node_prediction, node_labels,node_counts,subgraphs)
     
 

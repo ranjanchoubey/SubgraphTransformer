@@ -26,3 +26,6 @@ build/
 .vscode
 .vscode
 env
+
+datasets
+configs

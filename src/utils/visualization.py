@@ -84,7 +84,7 @@ def visualize_subgraph(node_prediction, node_labels, node_counts, subgraphs):
     # Get predicted classes for each node.
     prediction = torch.argmax(node_prediction, dim=1)
     labels = node_labels
-    num_plots = min(10, len(subgraphs))  # visualize at most 10 subgraphs
+    num_plots = min(20, len(subgraphs))  # visualize at most 10 subgraphs
 
     distinct_colors = [
         '#e41a1c', '#377eb8', '#4daf4a', '#984ea3',

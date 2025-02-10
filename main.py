@@ -40,14 +40,14 @@ def main():
     out_dir = config['out_dir']
     MODEL_NAME = config['model']
     DATASET_NAME = config['dataset']
-    
+    print(f"\n Dataset: {DATASET_NAME}\n")
     # Setup network parameters.
     net_params = config['net_params']
     net_params['device'] = device
     net_params['gpu_id'] = config['gpu']['id']
     net_params['batch_size'] = params['batch_size']
     net_params['in_dim'] = config['gcn']['output_dim']  # Example: 16 (from GCN output)
-    net_params['n_classes'] = 7
+    net_params['n_classes'] = config['data']['num_classes']  # For example, 7 in cora small dataset
 
     # Setup output directories for logs, checkpoints, results, and configs.
     time_str = time.strftime('%Hh%Mm%Ss_on_%b_%d_%Y')

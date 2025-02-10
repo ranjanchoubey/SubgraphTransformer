@@ -13,8 +13,11 @@ source venv/bin/activate
 # install dependencies
 pip install -e ".[dev]"
 
-# Run main.py file (entry point of code)
-python main.py  --dataset Cora   --config 'src/configs/default_config.json' --gpu_id 0
+# Run main.py file (entry point of code small dataset)
+python main.py  --dataset CoraSmall   --config 'configs/cora_small.json' --gpu_id 0
+
+# for CoraFull dataset
+python main.py  --dataset CoraFull   --config 'configs/cora_full.json' --gpu_id 0
 
 
 
