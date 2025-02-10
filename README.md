@@ -1,165 +1,197 @@
-# Graph Transformer with Subgraph-Level Attention
+# SubgraphTransformer
 
-## Project Overview
-This project aims to solve node classification in large graphs by reducing the quadratic attention complexity O(N²) to O(K²) where K is the number of subgraphs.
+A novel approach to graph representation learning that combines graph partitioning with transformer-based architectures for enhanced node classification.
 
-## Detailed Technical Specifications
+## Overview
 
-### 1. Cora Dataset Details
-- Total Nodes: 2708
-- Edge Count: 5429
-- Features Per Node: 1433 (sparse bag-of-words)
-- Classes: 7 (different research paper topics)
-- Class Distribution:
-  - Training: ~140 nodes per class (~20%)
-  - Validation: ~500 nodes (~18.5%)
-  - Test: ~1000 nodes (~37%)
-  - Unlabeled: Remaining nodes (~24.5%)
+SubgraphTransformer introduces a novel architecture that processes large graphs by:
+1. Partitioning them into meaningful subgraphs
+2. Computing rich subgraph embeddings
+3. Using transformer layers to model subgraph interactions
+4. Propagating subgraph predictions back to individual nodes
 
-### 2. Graph Partitioning Process
-- Algorithm: METIS
-- Number of Partitions: 100
-- Partition Characteristics:
-  - Min Nodes Per Subgraph: ~15
-  - Max Nodes Per Subgraph: ~40
-  - Average: 27 nodes
-  - Standard Deviation: ±8 nodes
-- Edge Cut Minimization:
-  - Internal Edges (preserved): ~80%
-  - External Edges (cut): ~20%
+This approach offers several advantages:
+- Reduces computational complexity for large graphs
+- Captures both local and global graph structure
+- Leverages modern transformer architectures for graph data
+- Maintains interpretability through explicit subgraph representations
 
-### 3. Embedding Generation Pipeline
+## Architecture Details
 
-#### A. GCN Embeddings
-- Input Layer: [N, 1433] → ReLU → [N, 64]
-- Hidden Layer: [N, 64] → ReLU → [N, 32]
-- Output Layer: [N, 32] → [N, 16]
-- Architecture Details:
-  - Layer Normalization after each conv
-  - Dropout rate: 0.1
-  - Skip connections
+### 1. Graph Partitioning
+The system begins by partitioning the input graph into smaller subgraphs using METIS:
+- Balances subgraph sizes
+- Minimizes edge cuts between partitions
+- Creates manageable units for processing
 
-#### B. Laplacian Positional Encoding
-1. Adjacency Matrix Construction:
-   - Sparse format for efficiency
-   - Self-loops added
-2. Normalized Laplacian:
-   - L = I - D^(-1/2)AD^(-1/2)
-3. Eigenvector Computation:
-   - Top-16 smallest eigenvalues
-   - Output shape: [N, 16]
+### 2. Feature Generation
+For each subgraph, we compute two types of embeddings:
+- **GCN Embeddings**: Capture node features and local topology
+  - Uses a 2-layer GraphConv network
+  - Aggregates neighborhood information
+  - Produces learned representations
 
-#### C. Subgraph Embedding Process
-1. Node Feature Aggregation:
-   - Mean pooling across nodes
-   - Max pooling (alternative)
-2. Dimension Retention:
-   - Preserves 16-dim structure
-   - Maintains spatial information
+- **Laplacian Positional Embeddings**: Encode structural information
+  - Based on the graph Laplacian eigendecomposition
+  - Captures topological position within subgraph
+  - Provides critical structural context
 
-### 4. Transformer Architecture Details
+### 3. Transformer Architecture
+The core transformer architecture consists of:
 
-#### A. Input Processing
-1. Embedding Combination:
-   ```
-   Subgraph_Final = Subgraph_GCN + LPE
-   [100, 16] = [100, 16] + [100, 16]
-   ```
+#### Multi-Head Attention
+- Processes subgraph-to-subgraph relationships
+- Computes attention scores between all subgraph pairs
+- Uses multiple attention heads for diverse relationship capture
+```python
+attention_scores = torch.matmul(Q, K.transpose(-2, -1)) / np.sqrt(self.out_dim)
+attention_probs = F.softmax(attention_scores, dim=-1)
+out = torch.matmul(attention_probs, V)
+```
 
-#### B. Multi-Head Attention
-1. Attention Head Breakdown:
-   - Number of Heads: 8
-   - Dimension per Head: 2
-   - Query/Key Size: 16
-2. Attention Computation:
-   ```
-   Q = XWq, K = XWk, V = XWv
-   Attention = softmax(QK^T/√d)V
-   ```
-3. Matrix Sizes:
-   - Q, K, V: [100, 8, 2]
-   - Attention Matrix: [8, 100, 100]
-   - Output: [100, 16]
+#### Transformer Layers
+Each transformer layer includes:
+- Multi-head attention mechanism
+- Feed-forward neural networks
+- Layer normalization
+- Residual connections
+- Dropout for regularization
 
-#### C. Feed-Forward Network
-1. Layer Architecture:
-   ```
-   Linear[16→64] → GELU → Dropout(0.1) → Linear[64→16]
-   ```
-2. Layer Normalization:
-   - Pre-norm architecture
-   - Epsilon: 1e-5
+### 4. Node Classification
+The final prediction process:
+1. Transformer outputs subgraph-level predictions
+2. Predictions are expanded to all nodes within each subgraph
+3. Loss is computed only for labeled nodes
+4. Cross-entropy loss with class weight balancing
 
-### 5. Label Propagation Mechanism
+## Implementation Details
 
-#### A. Subgraph to Node Mapping
-1. Forward Process:
-   ```
-   Subgraph Prediction [100, 7]
-   → Node Mapping [2708, 7]
-   Using repeat_interleave with num_nodes
-   ```
+### Key Components
 
-2. Label Assignment:
-   ```python
-   for each subgraph i:
-       nodes_in_subgraph = num_nodes[i]
-       nodes[start:end] = subgraph_prediction[i]
-   ```
+#### 1. Training Pipeline
+- Handles the main training loop
+- Manages model optimization
+- Tracks metrics and checkpoints
+- Implements early stopping
 
-### 6. Training Protocol
+#### 2. Graph Transformer Layer
+```python
+class GraphTransformerLayer(nn.Module):
+    def __init__(self, in_dim, out_dim, num_heads, dropout=0.0, 
+                 layer_norm=False, batch_norm=True, residual=True):
+        # Initialize attention, normalization, and FFN components
+        # ...
 
-#### A. Optimization Details
-- Optimizer: Adam
-  - Learning Rate: 0.001
-  - Betas: (0.9, 0.999)
-  - Weight Decay: 1e-4
-- Loss: CrossEntropy
-  - Label Smoothing: 0.1
+    def forward(self, g, h):
+        # Multi-head attention
+        # Normalization
+        # Feed-forward network
+        # Residual connections
+```
 
-#### B. Training Schedule
-- Epochs: 500
-- Early Stopping:
-  - Patience: 100
-  - Delta: 1e-4
-- Learning Rate Schedule:
-  - Warm-up: 10 epochs
-  - Decay: Cosine annealing
+#### 3. Feature Processing
+- GCN-based feature extraction
+- Laplacian positional encoding
+- Mean pooling for subgraph embeddings
 
-### 7. Memory Usage Analysis
+### Configuration System
 
-#### A. Traditional Transformer
-- Attention Matrix: 2708 × 2708 = 7,333,264 elements
-- Memory Required: ~29.3MB (float32)
+The system uses a flexible JSON configuration system:
+```json
+{
+    "gpu": {"use": true, "id": 0},
+    "model": "GraphTransformer",
+    "dataset": "CoraFull",
+    "params": {
+        "epochs": 800,
+        "batch_size": 1,
+        "init_lr": 0.0007
+        // ...
+    },
+    "net_params": {
+        "L": 4,
+        "n_heads": 8,
+        "hidden_dim": 512
+        // ...
+    }
+}
+```
 
-#### B. Our Approach
-- Attention Matrix: 100 × 100 = 10,000 elements
-- Memory Required: ~40KB (float32)
-- Memory Reduction: 99.86%
+## Usage
 
-### 8. Evaluation Metrics
+1. **Installation**
+```bash
+git clone https://github.com/username/SubgraphTransformer.git
+cd SubgraphTransformer
+pip install -r requirements.txt
+```
 
-#### A. Node-Level Metrics
-- Accuracy
-- Macro F1-Score
-- Micro F1-Score
-- Per-Class Precision/Recall
+2. **Running Training**
+```bash
+python main.py --config configs/cora_full.json
+```
 
-#### B. Subgraph-Level Analysis
-- Label Consistency within Subgraphs
-- Edge Cut Impact Analysis
-- Cross-Subgraph Error Propagation
+3. **Configuration**
+- Modify `configs/cora_full.json` for different settings
+- Key parameters:
+  - `num_parts`: Number of subgraphs
+  - `hidden_dim`: Model capacity
+  - `n_heads`: Number of attention heads
+  - `L`: Number of transformer layers
 
-### 9. Implementation Notes
+## Performance Optimization
 
-#### A. Device Management
-- GPU Memory Usage: ~1.2GB
-- CPU Memory Usage: ~4GB
-- Mixed Precision Training
-  - FP16 for attention computation
-  - FP32 for gradients
+### Memory Efficiency
+- Batch processing of subgraphs
+- Efficient attention computation
+- Smart memory management for large graphs
 
-#### B. Data Pipeline
-- Lazy Loading
-- Sparse Matrix Operations
-- Efficient Memory Management
+### Training Speed
+- GPU acceleration
+- Optimized data loading
+- Parallel subgraph processing
+
+### Model Architecture
+- Residual connections for gradient flow
+- Layer normalization for stability
+- Dropout for regularization
+
+## Results Visualization
+
+The system includes visualization tools for:
+- Training/validation curves
+- Attention patterns
+- Subgraph predictions
+- Node classification results
+
+## Future Directions
+
+Potential improvements and extensions:
+1. Dynamic partitioning strategies
+2. Enhanced positional encodings
+3. Hierarchical attention mechanisms
+4. Edge feature incorporation
+5. Self-supervised pretraining
+
+## Technical Requirements
+
+- Python 3.7+
+- PyTorch 1.7+
+- DGL 0.6+
+- CUDA-capable GPU (recommended)
+
+## Citation
+
+If you use this code in your research, please cite:
+```bibtex
+@article{subgraphtransformer2023,
+  title={SubgraphTransformer: A Partition-based Approach to Graph Classification},
+  author={[Authors]},
+  journal={[Journal]},
+  year={2023}
+}
+```
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
