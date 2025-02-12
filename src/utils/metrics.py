@@ -29,11 +29,19 @@ def accuracy(logits, labels, phase="train", epoch=None):
         accuracy: Classification accuracy
         probs: Softmax probabilities for further use
     """
-    probs, preds = get_predictions_from_logits(logits)
-    correct = preds.eq(labels).double()
-    acc = correct.sum() / len(labels)
+    # Move tensors to CPU before numpy conversion
+    if torch.is_tensor(logits):
+        logits = logits.detach().cpu()
+    if torch.is_tensor(labels):
+        labels = labels.detach().cpu()
+
+    probs = torch.softmax(logits, dim=1)
+    preds = probs.max(1)[1]
+    correct = preds.eq(labels)
+    acc = correct.sum().item() / len(labels)
     
-    return acc, probs
+    # Return CPU tensors
+    return acc, probs.cpu()
 
 def get_predictions_from_logits(logits):
     """

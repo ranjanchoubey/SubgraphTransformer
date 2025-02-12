@@ -18,7 +18,15 @@
   "min_lr": 1e-6,
   "weight_decay": 0.0,
   "print_epoch_interval": 5,
-  "max_time": 24
+  "max_time": 24,
+
+
+  "label_propagation": {
+    "enabled": true,
+    "min_component_size": 2,
+    "score_threshold": 0.5,
+    "top_k": 3
+}
 },
 
 "net_params": {

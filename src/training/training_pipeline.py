@@ -139,7 +139,17 @@ def train_val_pipeline(MODEL_NAME, dataset, params, net_params, dirs,train_mask,
     
     # visualize subgraph comparison
     print("\nPlotting Subgraph ....\n")
-    node_prediction, node_labels = evaluate_network(model, device, test_loader, epoch,test_mask, node_labels,node_counts,phase="test",compareSubgraph=True)
-    visualize_subgraph(node_prediction, node_labels,node_counts,subgraphs)
     
+    # Get label propagation config safely with defaults
+    label_prop_config = params.get('label_propagation')
+
+    node_prediction, node_labels = evaluate_network(
+        model, device, test_loader, epoch, test_mask, 
+        node_labels, node_counts, phase="test", 
+        compareSubgraph=True,
+        subgraphs=subgraphs,
+        label_prop_config=label_prop_config  # Pass the config
+    )
+    visualize_subgraph(node_prediction, node_labels, node_counts, subgraphs)
+
 
