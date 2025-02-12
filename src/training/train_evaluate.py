@@ -31,59 +31,40 @@ def expand_subgraph_predictions(subgraph_scores, node_counts):
 
 
 
-def train_epoch(model, optimizer, device, data_loader, epoch, train_mask, node_labels, node_counts,phase="train"):
-    """
-    Trains the model for one epoch.
-    
-    Args:
-        model: The model to train.
-        optimizer: The optimizer for updating model parameters.
-        device: The device (CPU/GPU) to use.
-        data_loader: DataLoader for the training dataset.
-        epoch: Current epoch number.
-        train_mask: Mask for training nodes.
-        node_labels: Labels for all nodes in the graph.
-        node_counts: Number of nodes in each subgraph.
-    
-    Returns:
-        epoch_loss: Average loss for the epoch.
-        epoch_train_acc: Average accuracy for the epoch.
-        optimizer: The optimizer after updating parameters.
-    """
+def train_epoch(model, optimizer, device, data_loader, epoch, train_mask, node_labels, node_counts):
     model.train()
     epoch_loss = 0
     epoch_train_acc = 0
 
-    # Since the dataset is a single graph, the data_loader will have only one batch
     for iter, batch_features in enumerate(data_loader):
         batch_features = batch_features.to(device)
-        batch_labels = node_labels.to(device)  # Labels for all nodes
+        batch_labels = node_labels.to(device)
 
-        # Zero the gradients
         optimizer.zero_grad()
-
-        # Forward pass: Get subgraph-level predictions
-        subgraph_scores = model.forward(batch_features)  # Shape: [num_subgraphs, num_classes]
-
-        # Expand subgraph predictions to all nodes
-        node_prediction = expand_subgraph_predictions(subgraph_scores, node_counts)  # Shape: [num_nodes, num_classes]
-
-        # Compute loss only for training nodes , size of node_prediction[train_mask] is [140,7]
-        loss = model.loss(node_prediction[train_mask], batch_labels[train_mask])
+        
+        # Get logits from model
+        subgraph_logits = model.forward(batch_features)
+        
+        # Expand logits to node level
+        node_logits = expand_subgraph_predictions(subgraph_logits, node_counts)
+        
+        # Compute loss using logits
+        loss = model.loss(node_logits[train_mask], batch_labels[train_mask])
         
         loss.backward()
         optimizer.step()
+        
+        # Get accuracy and probabilities
+        acc, probs = accuracy(node_logits[train_mask], batch_labels[train_mask], phase="train", epoch=epoch)
+        epoch_train_acc += acc
         epoch_loss += loss.detach().item()
-        epoch_train_acc += accuracy(node_prediction[train_mask], batch_labels[train_mask], phase=phase, epoch=epoch)
 
-    # Normalize loss and accuracy
     epoch_loss /= (iter + 1)
-    epoch_train_acc /= (iter + 1)  # Average accuracy across batches
-    print()
+    epoch_train_acc /= (iter + 1)
+    
     return epoch_loss, epoch_train_acc, optimizer
 
-def  evaluate_network(model, device, data_loader, epoch,test_mask, node_labels,node_counts,phase,comapreSubgraph=False):
-
+def evaluate_network(model, device, data_loader, epoch, test_mask, node_labels, node_counts, phase, compareSubgraph=False):
     model.eval()
     epoch_test_loss = 0
     epoch_test_acc = 0
@@ -91,27 +72,27 @@ def  evaluate_network(model, device, data_loader, epoch,test_mask, node_labels,n
     with torch.no_grad():
         for iter, batch_graphs in enumerate(data_loader):
             batch_graphs = batch_graphs.to(device)
-            batch_labels = node_labels.to(device)  # Labels for all nodes
+            batch_labels = node_labels.to(device)
 
-            # Forward pass: Get subgraph-level predictions
-            subgraph_scores = model.forward(batch_graphs)  # Shape: [num_subgraphs, num_classes]
-                    
-            # Expand subgraph predictions to all nodes
-            node_prediction = expand_subgraph_predictions(subgraph_scores, node_counts) # Shape: [num_nodes, num_classes]
+            # Get logits from model
+            subgraph_logits = model.forward(batch_graphs)
             
-            # print("\n node_prediction : ",node_prediction.shape)
-            # Compute loss only for training nodes
-            loss = model.loss(node_prediction[test_mask], batch_labels[test_mask])
+            # Expand logits to node level
+            node_logits = expand_subgraph_predictions(subgraph_logits, node_counts)
             
+            if compareSubgraph:
+                # Return logits for visualization/comparison
+                return node_logits, batch_labels
+            
+            # Compute loss using logits
+            loss = model.loss(node_logits[test_mask], batch_labels[test_mask])
+            
+            # Get accuracy and probabilities
+            acc, probs = accuracy(node_logits[test_mask], batch_labels[test_mask], phase=phase, epoch=epoch)
+            epoch_test_acc += acc
             epoch_test_loss += loss.detach().item()
-            
-            if comapreSubgraph==True:
-                return node_prediction, batch_labels
-            
-            # Compute accuracy only for test nodes
-            epoch_test_acc += accuracy(node_prediction[test_mask], batch_labels[test_mask], phase=phase, epoch=epoch)
-            
+
         epoch_test_loss /= (iter + 1)
-        epoch_test_acc /= (iter + 1)  # Average accuracy across batches
+        epoch_test_acc /= (iter + 1)
 
     return epoch_test_loss, epoch_test_acc

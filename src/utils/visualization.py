@@ -11,64 +11,51 @@ import matplotlib.pyplot as plt
 
 def plot_train_val_curves(epoch_train_losses, epoch_val_losses, epoch_train_accs, epoch_val_accs):
     """
-    Plot the training and validation loss and accuracy curves,
-    and annotate the final loss and accuracy values on the plots.
-    
-    Args:
-        epoch_train_losses (list): List of training losses for each epoch.
-        epoch_val_losses (list): List of validation losses for each epoch.
-        epoch_train_accs (list): List of training accuracies for each epoch.
-        epoch_val_accs (list): List of validation accuracies for each epoch.
+    Plot the training and validation loss and accuracy curves
     """
-    epochs = range(1, len(epoch_train_losses) + 1)
+    # Move tensors to CPU and convert to numpy
+    def to_numpy(x):
+        if torch.is_tensor(x):
+            return x.cpu().detach().numpy()
+        return x
+
+    # Convert lists/tensors to numpy arrays
+    train_losses = [to_numpy(loss) for loss in epoch_train_losses]
+    val_losses = [to_numpy(loss) for loss in epoch_val_losses]
+    train_accs = [to_numpy(acc) for acc in epoch_train_accs]
+    val_accs = [to_numpy(acc) for acc in epoch_val_accs]
     
-    # Create a figure with two subplots.
+    epochs = range(1, len(train_losses) + 1)
+    
+    # Create figure with two subplots
     plt.figure(figsize=(12, 5))
     
-    # Plot Loss Curves.
+    # Plot Loss Curves
     ax1 = plt.subplot(1, 2, 1)
-    ax1.plot(epochs, epoch_train_losses, 'b-', label='Train Loss')
-    ax1.plot(epochs, epoch_val_losses, 'r-', label='Validation Loss')
+    ax1.plot(epochs, train_losses, 'b-', label='Train Loss')
+    ax1.plot(epochs, val_losses, 'r-', label='Validation Loss')
     ax1.set_xlabel('Epochs')
     ax1.set_ylabel('Loss')
     ax1.set_title('Train vs. Validation Loss')
     ax1.legend()
-    # Annotate the final loss values.
-    ax1.text(epochs[-1], epoch_train_losses[-1],
-             f'{epoch_train_losses[-1]:.4f}', fontsize=10, color='blue', ha='right', va='bottom')
-    ax1.text(epochs[-1], epoch_val_losses[-1],
-             f'{epoch_val_losses[-1]:.4f}', fontsize=10, color='red', ha='right', va='bottom')
     
-    # Plot Accuracy Curves.
+    # Plot Accuracy Curves
     ax2 = plt.subplot(1, 2, 2)
-    ax2.plot(epochs, epoch_train_accs, 'b-', label='Train Accuracy')
-    ax2.plot(epochs, epoch_val_accs, 'r-', label='Validation Accuracy')
+    ax2.plot(epochs, train_accs, 'b-', label='Train Accuracy')
+    ax2.plot(epochs, val_accs, 'r-', label='Validation Accuracy')
     ax2.set_xlabel('Epochs')
     ax2.set_ylabel('Accuracy')
     ax2.set_title('Train vs. Validation Accuracy')
     ax2.legend()
-    # Annotate the final accuracy values (formatted as percentages).
-    ax2.text(epochs[-1], epoch_train_accs[-1],
-            f'{epoch_train_accs[-1]:.2f}%', fontsize=10, color='blue', ha='right', va='bottom')
-    ax2.text(epochs[-1], epoch_val_accs[-1],
-            f'{epoch_val_accs[-1]:.2f}%', fontsize=10, color='red', ha='right', va='bottom')
-
-
     
     plt.tight_layout()
     
-    # Define the output directory and filename.
+    # Save plot
     out_dir = os.path.abspath(os.path.join(os.getcwd(), 'out'))
     os.makedirs(out_dir, exist_ok=True)
-    
-    # Use a constant filename to overwrite the same image each time.
     plot_save_path = os.path.join(out_dir, 'train_val_curves.png')
-    
     plt.savefig(plot_save_path, bbox_inches='tight', dpi=300)
-    plt.show()
-
-
-
+    plt.close()
 
 def visualize_subgraph(node_prediction, node_labels, node_counts, subgraphs):
     """

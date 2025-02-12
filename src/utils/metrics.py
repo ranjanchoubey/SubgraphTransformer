@@ -17,28 +17,36 @@ def save_prediction_analysis(true_classes,pred_classes, phase, epoch, out_dir="o
                 f.write(f"Node {i}: True: {true_classes[i]}, Pred: {pred_classes[i]}\n")
                            
 
-def accuracy(pred, labels, phase, epoch):
+def accuracy(logits, labels, phase="train", epoch=None):
     """
-    Compute classification accuracy and save prediction analysis to file.
-    
+    Computes accuracy from logits and labels
     Args:
-        pred: Model predictions/logits [num_nodes, num_classes]
-        labels: Ground truth labels [num_nodes]
-        phase: Current phase ('train', 'val', or 'test')
+        logits: Model logits [batch_size, num_classes]
+        labels: Ground truth labels [batch_size]
+        phase: Training phase ('train', 'val', or 'test')
         epoch: Current epoch number
     Returns:
-        accuracy: Classification accuracy as percentage (0-100)
+        accuracy: Classification accuracy
+        probs: Softmax probabilities for further use
     """
-    with torch.no_grad():
-        pred_classes = torch.argmax(pred, dim=1)
+    probs, preds = get_predictions_from_logits(logits)
+    correct = preds.eq(labels).double()
+    acc = correct.sum() / len(labels)
+    
+    return acc, probs
 
-        # Move tensors to CPU and convert to numpy
-        pred_classes = pred_classes.cpu().numpy()
-        true_classes = labels.cpu().numpy()
-        acc = accuracy_score(true_classes, pred_classes)*100.0
-        
-        save_prediction_analysis(true_classes,pred_classes, phase, epoch)
-    return acc 
+def get_predictions_from_logits(logits):
+    """
+    Convert logits to probabilities and predictions
+    Args:
+        logits: Raw model outputs [batch_size, num_classes]
+    Returns:
+        probs: Softmax probabilities [batch_size, num_classes]
+        preds: Predicted class indices [batch_size]
+    """
+    probs = torch.softmax(logits, dim=1)
+    preds = probs.max(1)[1]
+    return probs, preds
 
 
 
