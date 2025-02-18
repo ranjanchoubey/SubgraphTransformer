@@ -10,10 +10,13 @@ from torch.utils.data import DataLoader
 from torch import optim
 from src.models.networks.load_net import gnn_model
 from src.training.train_evaluate import collate_graphs, evaluate_network, train_epoch
-from src.utils.visualization import plot_train_val_curves, visualize_subgraph
+from src.utils.visualization import plot_train_val_curves, visualize_node_predictions
 
 
-def train_val_pipeline(MODEL_NAME, dataset, params, net_params, dirs,train_mask,val_mask,test_mask, node_labels,node_counts,subgraphs):
+def train_val_pipeline(MODEL_NAME, dataset, params, net_params, dirs, 
+                      train_mask, val_mask, test_mask, node_labels, 
+                      node_counts, subgraphs, subgraph_components=None):  # Added subgraph_components parameter
+    """Training pipeline with component-aware processing"""
 
     start0 = time.time()
     per_epoch_time = []
@@ -36,7 +39,7 @@ def train_val_pipeline(MODEL_NAME, dataset, params, net_params, dirs,train_mask,
     writer = SummaryWriter(log_dir=log_dir)    
     
     
-    model = gnn_model(MODEL_NAME, net_params)
+    model = gnn_model(MODEL_NAME, net_params,subgraph_components=subgraph_components)
     model = model.to(device)
 
     optimizer = optim.Adam(model.parameters(), lr=params['init_lr'], weight_decay=params['weight_decay'])
@@ -61,10 +64,19 @@ def train_val_pipeline(MODEL_NAME, dataset, params, net_params, dirs,train_mask,
             
                 start = time.time()
                 
-                epoch_train_loss, epoch_train_acc, optimizer = train_epoch(model, optimizer, device, train_loader, epoch, train_mask,node_labels,node_counts)                
+                epoch_train_loss, epoch_train_acc, optimizer = train_epoch(
+                    model, optimizer, device, train_loader, epoch,
+                    train_mask, node_labels, node_counts, 
+                    subgraphs=subgraphs,
+                    subgraph_components=subgraph_components  # Pass components
+                )                
 
-                epoch_val_loss, epoch_val_acc = evaluate_network(model, device, val_loader, epoch,  val_mask, node_labels, node_counts,phase="val")
-                _, epoch_test_acc = evaluate_network(model, device, test_loader, epoch, test_mask, node_labels, node_counts,phase="test")                    
+                epoch_val_loss, epoch_val_acc = evaluate_network(
+                    model, device, val_loader, epoch, val_mask,
+                    node_labels, node_counts, subgraph_components,  # Pass components
+                    phase="val"
+                )
+                _, epoch_test_acc = evaluate_network(model, device, test_loader, epoch, test_mask, node_labels, node_counts,subgraph_components,phase="test")                    
 
                 epoch_train_losses.append(epoch_train_loss)
                 epoch_val_losses.append(epoch_val_loss)
@@ -114,8 +126,8 @@ def train_val_pipeline(MODEL_NAME, dataset, params, net_params, dirs,train_mask,
         print('-' * 89)
         print('Exiting from training early because of KeyboardInterrupt')
 
-    _, test_acc = evaluate_network(model, device, test_loader, epoch,test_mask, node_labels,node_counts,phase="test")
-    _, train_acc = evaluate_network(model, device, train_loader, epoch,train_mask, node_labels,node_counts,phase="train")
+    _, test_acc = evaluate_network(model, device, test_loader, epoch,test_mask, node_labels,node_counts,subgraph_components,phase="test")
+    _, train_acc = evaluate_network(model, device, train_loader, epoch,train_mask, node_labels,node_counts,subgraph_components,phase="train")
     print("Test Accuracy: {:.4f}".format(test_acc))
     print("Train Accuracy: {:.4f}".format(train_acc))
     print("Convergence Time (Epochs): {:.4f}".format(epoch))
@@ -143,13 +155,13 @@ def train_val_pipeline(MODEL_NAME, dataset, params, net_params, dirs,train_mask,
     # Get label propagation config safely with defaults
     label_prop_config = params.get('label_propagation')
 
-    node_prediction, node_labels = evaluate_network(
+    node_logits, node_labels = evaluate_network(
         model, device, test_loader, epoch, test_mask, 
-        node_labels, node_counts, phase="test", 
+        node_labels, node_counts,subgraph_components, phase="test", 
         compareSubgraph=True,
         subgraphs=subgraphs,
         label_prop_config=label_prop_config  # Pass the config
     )
-    visualize_subgraph(node_prediction, node_labels, node_counts, subgraphs)
+    visualize_node_predictions(node_logits, node_labels, node_counts, subgraphs)
 
 

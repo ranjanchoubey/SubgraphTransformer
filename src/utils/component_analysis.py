@@ -4,30 +4,22 @@ import networkx as nx
 
 def get_component_info(subgraph):
     """
-    Analyze connected components in a subgraph
-    Returns dict with component scores and node mappings
+    Get sizes of connected components in a subgraph
+    Args:
+        subgraph: DGL subgraph object
+    Returns:
+        component_sizes: List of component sizes [n1, n2, n3, ...] where ni is number of nodes in component i
     """
     # Convert to networkx for component analysis
-    nx_graph = dgl.to_networkx(subgraph).to_undirected()
+    nx_graph = subgraph.to_networkx().to_undirected()
+    
+    # Get connected components
     components = list(nx.connected_components(nx_graph))
     
-    component_info = []
-    for comp_nodes in components:
-        comp_subgraph = nx_graph.subgraph(comp_nodes)
-        
-        # Calculate density score
-        num_nodes = len(comp_nodes)
-        num_edges = comp_subgraph.number_of_edges()
-        max_possible_edges = (num_nodes * (num_nodes - 1)) / 2
-        density = num_edges / max_possible_edges if max_possible_edges > 0 else 0
-        
-        component_info.append({
-            'nodes': sorted(list(comp_nodes)),  # nodes in this component
-            'score': density,                   # component density score
-            'size': num_nodes                   # size of component
-        })
+    # Get size of each component
+    component_sizes = [len(component) for component in components]
     
-    # Sort components by score (highest first)
-    component_info.sort(key=lambda x: (x['score'], x['size']), reverse=True)
+    # For debugging
+    print(f"Found {len(component_sizes)} components with sizes: {component_sizes}")
     
-    return component_info
+    return component_sizes

@@ -11,13 +11,8 @@ from src.models.layers.graph_transformer_layer import GraphTransformerLayer
 from src.models.layers.mlp_readout_layer import MLPReadout
 
 class GraphTransformerNet(nn.Module):
-
-    def __init__(self, net_params):
+    def __init__(self, net_params,subgraph_components=None):
         super().__init__()
-        # print("===============")
-        # print("GraphTransformerNet init : net_params", net_params)
-        # print("===============")
-        
         in_dim_node = net_params['in_dim'] # node_dim (feat is an integer)
         hidden_dim = net_params['hidden_dim']
         out_dim = net_params['out_dim']
@@ -26,7 +21,6 @@ class GraphTransformerNet(nn.Module):
         in_feat_dropout = net_params['in_feat_dropout']
         dropout = net_params['dropout']
         n_layers = net_params['L']
-
         self.readout = net_params['readout']
         self.layer_norm = net_params['layer_norm']
         self.batch_norm = net_params['batch_norm']
@@ -37,74 +31,69 @@ class GraphTransformerNet(nn.Module):
         self.lap_pos_enc = net_params['lap_pos_enc']
         self.wl_pos_enc = net_params['wl_pos_enc']
         max_wl_role_index = 100 
-        
-        # if self.lap_pos_enc:
-        #     pos_enc_dim = net_params['pos_enc_dim']
-        #     self.embedding_lap_pos_enc = nn.Linear(pos_enc_dim, hidden_dim)
-        # if self.wl_pos_enc:
-        #     self.embedding_wl_pos_enc = nn.Embedding(max_wl_role_index, hidden_dim)
-        
-        # self.embedding_h = nn.Embedding(in_dim_node, hidden_dim) # node feat is an integer
+        self.num_subgraph =  net_params['num_subgraph']
+
         
         
-        # Add a linear layer to project input features to hidden_dim
+        ######### Regularization :  Component handling parameters - add these before layer initialization
+        self.max_components = net_params.get('max_components')
+        self.reg_lambda = net_params.get('reg_lambda')  # Reduce from 0.01 to 0.0001
+        self.reg_enabled = True
+
+
+        self.list_weight = []
+        for i in range(self.num_subgraph):
+            self.component_weights = nn.Parameter(torch.ones(len(subgraph_components[i]), device=self.device))
+            self.list_weight.append(self.component_weights)
+
+
+
         self.input_proj = nn.Linear(in_dim_node, hidden_dim)
-        
         self.in_feat_dropout = nn.Dropout(in_feat_dropout)
-        
-        self.layers = nn.ModuleList([GraphTransformerLayer(hidden_dim, hidden_dim, num_heads,
-                                              dropout, self.layer_norm, self.batch_norm, self.residual) for _ in range(n_layers-1)])
+        self.layers = nn.ModuleList([GraphTransformerLayer(hidden_dim, hidden_dim, num_heads,dropout, self.layer_norm, self.batch_norm, self.residual) for _ in range(n_layers-1)])
         self.layers.append(GraphTransformerLayer(hidden_dim, out_dim, num_heads, dropout, self.layer_norm, self.batch_norm,  self.residual))
         self.MLP_layer = MLPReadout(out_dim, n_classes)
+        
 
 
-    def forward(self, g, h, e=None, h_lap_pos_enc=None, h_wl_pos_enc=None):
 
-        # input embedding
-        # h = self.embedding_h(h)
-        
-        # print("before projection h shape : ",h.shape) # It is [100, 16]
-        h = self.input_proj(h)  # Project input features to hidden_dim
-        # print("After  projection h shape: ",h.shape)
-        
-        # if self.lap_pos_enc:
-        #     h_lap_pos_enc = self.embedding_lap_pos_enc(h_lap_pos_enc.float()) 
-        #     h = h + h_lap_pos_enc
-        # if self.wl_pos_enc:
-        #     h_wl_pos_enc = self.embedding_wl_pos_enc(h_wl_pos_enc) 
-        #     h = h + h_wl_pos_enc
-        
+    def forward(self, features,subgraph_components):
+        h = self.input_proj(features)  # [num_subgraphs, hidden_dim]
         h = self.in_feat_dropout(h)
-        
-        # GraphTransformer Layers
-        for conv in self.layers:
-            h = conv(g, h)
-            
-        # output
-        h_out = self.MLP_layer(h)
-
-        return h_out
-
-    def forward(self, features, *args):
-        """
-        Forward pass using just features.
-        Args:
-            features: Subgraph features [num_subgraphs, in_dim]
-        """
-        h = self.input_proj(features)
-        h = self.in_feat_dropout(h)
-        
-        # GraphTransformer Layers
         for layer in self.layers:
-            h = layer(None, h)  # None for graph since we don't use it
-            
-        h_out = self.MLP_layer(h)
-        return h_out
-    
-    
-    def loss(self, pred, label):
+            h = layer(None, h)
+        logits = self.MLP_layer(h)  # [num_subgraphs, num_classes]
 
-        # calculating label weights for weighted loss computation
+        return self.propagate_labels(logits, subgraph_components)  # [total_nodes, num_classes]
+
+
+    def propagate_labels(self, subgraph_logits, subgraph_components):
+        predictions = []
+        total_nodes = 0
+
+        for i in range(len(subgraph_components)):
+            for j in range(len(subgraph_components[i])):
+                comp_size = int(subgraph_components[i][j])
+                comp_pred = subgraph_logits[i] * self.list_weight[i][j]
+                node_preds = comp_pred.repeat(comp_size, 1)
+                predictions.append(node_preds)
+
+        result = torch.cat(predictions, dim=0) # size [total_nodes, num_classes]
+        return result
+
+
+    def compute_reg_loss(self, subgraph_components): 
+        reg_loss = 0.0
+
+        for i in range(self.num_subgraph):
+            # Convert list to tensor properly using torch.tensor() with proper cloning
+            components_tensor = torch.FloatTensor(subgraph_components[i]).to(self.device)
+            product = torch.dot(self.list_weight[i], components_tensor)
+            reg_loss += (product - 1)
+        return reg_loss
+    
+
+    def loss(self, pred, label, subgraph_components=None):
         V = label.size(0)
         label_count = torch.bincount(label)
         label_count = label_count[label_count.nonzero()].squeeze()
@@ -112,12 +101,20 @@ class GraphTransformerNet(nn.Module):
         cluster_sizes[torch.unique(label)] = label_count
         weight = (V - cluster_sizes).float() / V
         weight *= (cluster_sizes>0).float()
-        
-        # weighted cross-entropy for unbalanced classes
         criterion = nn.CrossEntropyLoss(weight=weight)
-        loss = criterion(pred, label)
+        base_loss = criterion(pred, label)
 
-        return loss
+        reg_loss = self.compute_reg_loss(subgraph_components)
+        total_loss = base_loss + self.reg_lambda * reg_loss
+        
+        print(f"Base Loss: {base_loss.item()} | reg_lambda * reg_loss: {self.reg_lambda * reg_loss.item()} | Total Loss: {total_loss.item()}")
+        # print("\nWeight Gradients after loss:") # After backward() is called,see these gradients updated
+        
+        # if self.component_weights.grad is not None:
+        #     print(self.component_weights.grad) 
+        # else:
+        #     print("No gradients yet")  
+        return total_loss
 
 
 

@@ -10,7 +10,7 @@
 
 "params": {
   "seed": 41,
-  "epochs": 200,
+  "epochs": 500,
   "batch_size": 128,
   "init_lr": 0.0007,
   "lr_reduce_factor": 0.5,
@@ -18,15 +18,7 @@
   "min_lr": 1e-6,
   "weight_decay": 0.0,
   "print_epoch_interval": 5,
-  "max_time": 24,
-
-
-  "label_propagation": {
-    "enabled": true,
-    "min_component_size": 2,
-    "score_threshold": 0.5,
-    "top_k": 3
-}
+  "max_time": 24
 },
 
 "net_params": {
@@ -45,7 +37,10 @@
   "lap_pos_enc": false,
   "pos_enc_dim": 8,
   "wl_pos_enc": false,
-  "full_graph": false
+  "full_graph": false,
+  "num_subgraph" :80,
+  
+  "reg_lambda": 0.001
 
 },
 
