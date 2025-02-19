@@ -179,6 +179,7 @@ def train_val_pipeline(MODEL_NAME, dataset, params, net_params, dirs,
     # Get label propagation config safely with defaults
     label_prop_config = params.get('label_propagation')
 
+    print("\nprediction...")
     node_logits, node_labels = evaluate_network(
         model, device, test_loader, epoch, test_mask, 
         node_labels, node_counts,subgraph_components, phase="test", 

@@ -71,6 +71,9 @@ class GraphTransformerNet(nn.Module):
         predictions = []
 
         for i in range(len(subgraph_components)):
+
+            print("\n list_weight : ",self.list_weight[i])
+
             for j in range(len(subgraph_components[i])):
                 comp_size = int(subgraph_components[i][j])
                 comp_pred = subgraph_logits[i] * self.list_weight[i][j]
