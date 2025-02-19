@@ -72,7 +72,7 @@ def main():
     
     # Step 3: Partition the graph and analyze components
     print("\n" + "="*50,"\n Step 3: Partitioning Graph and Analyzing Components","\n"+"="*50)
-    subgraphs = partition_graph(graph, num_parts=config['data']['num_parts'])
+    subgraphs = partition_graph(graph, num_parts=config['net_params']['num_subgraph'])
     
     # Store component information during preprocessing[[9,6],[5,4,3],...] - varying number of components per
     subgraph_components = []
@@ -82,7 +82,7 @@ def main():
         # print(f"Subgraph {i}: {len(component_info)} components")
     print("subgraph_components",subgraph_components)    
 
-    print(f"✓ Graph partitioned into {config['data']['num_parts']} subgraphs with component analysis")
+    print(f"✓ Graph partitioned into {config['net_params']['num_subgraph']} subgraphs with component analysis")
     
     # Step 4: Compute embeddings, node label and mask for each subgraph.
     print("\n" + "="*50,"\n Step 4: Computing Embeddings","\n"+"="*50)

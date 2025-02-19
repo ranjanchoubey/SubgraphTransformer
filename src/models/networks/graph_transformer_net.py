@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-
 """
     Graph Transformer
     
@@ -35,16 +34,17 @@ class GraphTransformerNet(nn.Module):
 
         
         
-        ######### Regularization :  Component handling parameters - add these before layer initialization
-        self.max_components = net_params.get('max_components')
+        ######### Regularization :  Component handling parameters #########
         self.reg_lambda = net_params.get('reg_lambda')  # Reduce from 0.01 to 0.0001
         self.reg_enabled = True
 
 
-        self.list_weight = []
+        self.list_weight =  nn.ParameterList()
         for i in range(self.num_subgraph):
-            self.component_weights = nn.Parameter(torch.ones(len(subgraph_components[i]), device=self.device))
+            self.component_weights = nn.Parameter(torch.ones(len(subgraph_components[i]), device=self.device))/len(subgraph_components[i])
+            # print(f"Component weights for subgraph {i}: {self.component_weights}")
             self.list_weight.append(self.component_weights)
+
 
 
 
@@ -69,7 +69,6 @@ class GraphTransformerNet(nn.Module):
 
     def propagate_labels(self, subgraph_logits, subgraph_components):
         predictions = []
-        total_nodes = 0
 
         for i in range(len(subgraph_components)):
             for j in range(len(subgraph_components[i])):
@@ -86,10 +85,24 @@ class GraphTransformerNet(nn.Module):
         reg_loss = 0.0
 
         for i in range(self.num_subgraph):
-            # Convert list to tensor properly using torch.tensor() with proper cloning
-            components_tensor = torch.FloatTensor(subgraph_components[i]).to(self.device)
+            # Convert to tensor and normalize
+            components_tensor = torch.tensor(subgraph_components[i], 
+                                          dtype=torch.float32, 
+                                          device=self.device)
+            # Compute dot product with weights
             product = torch.dot(self.list_weight[i], components_tensor)
-            reg_loss += (product - 1)
+            
+            # Use quadratic penalty for better stability
+            reg_loss += product - 1.0
+            
+            # # Optional: Add debugging information
+            # if self.training:
+            #     print(f"\nSubgraph {i} statistics:")
+            #     print(f"Raw components: {components_tensor}")
+            #     print(f"Weights: {self.list_weight[i]}")
+            #     print(f"Product: {product:.4f}")
+            #     print(f"Reg loss term: {torch.square(product - 1.0):.4f}")
+
         return reg_loss
     
 
@@ -105,16 +118,10 @@ class GraphTransformerNet(nn.Module):
         base_loss = criterion(pred, label)
 
         reg_loss = self.compute_reg_loss(subgraph_components)
-        total_loss = base_loss + self.reg_lambda * reg_loss
+        reg_term = self.reg_lambda * reg_loss
+        total_loss = base_loss + reg_term
         
-        print(f"Base Loss: {base_loss.item()} | reg_lambda * reg_loss: {self.reg_lambda * reg_loss.item()} | Total Loss: {total_loss.item()}")
-        # print("\nWeight Gradients after loss:") # After backward() is called,see these gradients updated
-        
-        # if self.component_weights.grad is not None:
-        #     print(self.component_weights.grad) 
-        # else:
-        #     print("No gradients yet")  
-        return total_loss
+        return total_loss, base_loss.item(), reg_term.item()
 
 
 

@@ -54,6 +54,8 @@ def train_val_pipeline(MODEL_NAME, dataset, params, net_params, dirs,
     val_loader = DataLoader(valset, batch_size=params['batch_size'], shuffle=False, collate_fn=collate_graphs)
     test_loader = DataLoader(testset, batch_size=params['batch_size'], shuffle=False, collate_fn=collate_graphs)
 
+    train_class_losses = []
+    train_reg_losses = []
 
     # At any point you can hit Ctrl + C to break out of training early.
     try:
@@ -63,13 +65,20 @@ def train_val_pipeline(MODEL_NAME, dataset, params, net_params, dirs,
                 t.set_description('Epoch %d' % epoch)
             
                 start = time.time()
-                
-                epoch_train_loss, epoch_train_acc, optimizer = train_epoch(
+                # epoch_loss, epoch_class_loss, epoch_reg_loss
+                # Updated to receive training accuracy
+                total_loss, class_loss, reg_loss, epoch_train_acc, optimizer = train_epoch(
                     model, optimizer, device, train_loader, epoch,
                     train_mask, node_labels, node_counts, 
                     subgraphs=subgraphs,
                     subgraph_components=subgraph_components  # Pass components
                 )                
+
+                epoch_train_loss = total_loss
+                train_class_losses.append(class_loss)
+                train_reg_losses.append(reg_loss)
+                epoch_train_losses.append(epoch_train_loss)
+                epoch_train_accs.append(epoch_train_acc)
 
                 epoch_val_loss, epoch_val_acc = evaluate_network(
                     model, device, val_loader, epoch, val_mask,
@@ -78,9 +87,7 @@ def train_val_pipeline(MODEL_NAME, dataset, params, net_params, dirs,
                 )
                 _, epoch_test_acc = evaluate_network(model, device, test_loader, epoch, test_mask, node_labels, node_counts,subgraph_components,phase="test")                    
 
-                epoch_train_losses.append(epoch_train_loss)
                 epoch_val_losses.append(epoch_val_loss)
-                epoch_train_accs.append(epoch_train_acc)
                 epoch_val_accs.append(epoch_val_acc)                
 
                 writer.add_scalar('train/_loss', epoch_train_loss, epoch)
@@ -122,6 +129,15 @@ def train_val_pipeline(MODEL_NAME, dataset, params, net_params, dirs,
                     print("Max_time for training elapsed {:.2f} hours, so stopping".format(params['max_time']))
                     break
 
+                # Save loss components for visualization
+                loss_data = {
+                    'train_loss': epoch_train_losses,
+                    'val_loss': epoch_val_losses,
+                    'train_class_loss': train_class_losses,
+                    'train_reg_loss': train_reg_losses
+                }
+                np.save(f"{writer.file_writer.get_logdir()}/loss_data.npy", loss_data)
+
     except KeyboardInterrupt:
         print('-' * 89)
         print('Exiting from training early because of KeyboardInterrupt')
@@ -147,7 +163,15 @@ def train_val_pipeline(MODEL_NAME, dataset, params, net_params, dirs,
                   test_acc, train_acc, epoch, (time.time()-start0)/3600, np.mean(per_epoch_time)))
 
     # Plot training and validation curves.
-    plot_train_val_curves(epoch_train_losses, epoch_val_losses, epoch_train_accs, epoch_val_accs)
+    loss_data = {
+        'train_loss': epoch_train_losses,
+        'val_loss': epoch_val_losses,
+        'train_class_loss': train_class_losses,
+        'train_reg_loss': train_reg_losses
+    }
+    # Use the log directory for saving the plot
+    plot_path = os.path.join('train_summary.png')
+    plot_train_val_curves(loss_data, plot_path)
     
     # visualize subgraph comparison
     print("\nPlotting Subgraph ....\n")

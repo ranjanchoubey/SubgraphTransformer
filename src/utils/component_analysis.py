@@ -20,6 +20,6 @@ def get_component_info(subgraph):
     component_sizes = [len(component) for component in components]
     
     # For debugging
-    print(f"Found {len(component_sizes)} components with sizes: {component_sizes}")
+    # print(f"Found {len(component_sizes)} components with sizes: {component_sizes}")
     
     return component_sizes

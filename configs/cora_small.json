@@ -38,15 +38,14 @@
   "pos_enc_dim": 8,
   "wl_pos_enc": false,
   "full_graph": false,
+
   "num_subgraph" :80,
-  
   "reg_lambda": 0.001
 
 },
 
 "data":
 {
-  "num_parts":80,
   "num_classes": 7
 },
 

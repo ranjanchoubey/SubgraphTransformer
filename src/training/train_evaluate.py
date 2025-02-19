@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 import math
 import dgl
-from src.utils.label_propagation import propagate_labels_with_components
 from src.utils.metrics import  accuracy
 from torch.utils.data import DataLoader
 import dgl
@@ -22,8 +21,9 @@ def collate_graphs(batch):
 def train_epoch(model, optimizer, device, data_loader, epoch, train_mask, node_labels, node_counts, subgraphs=None, subgraph_components=None, label_prop_config=None):
     model.train()
     epoch_loss = 0
+    epoch_class_loss = 0
+    epoch_reg_loss = 0
     epoch_train_acc = 0
-    n_iters = 0
 
     for iter, batch_features in enumerate(data_loader):
         batch_features = batch_features.to(device)
@@ -46,17 +46,20 @@ def train_epoch(model, optimizer, device, data_loader, epoch, train_mask, node_l
         # logits[test_mask] shape: [1000, 7] (num_test_nodes, num_classes)
         
         # Loss computation
-        loss = model.loss(logits[train_mask], batch_labels[train_mask], subgraph_components)
-        loss.backward()
+        total_loss, class_loss, reg_loss = model.loss(logits[train_mask], batch_labels[train_mask], subgraph_components)
+        total_loss.backward()
         optimizer.step()
         
-        # Calculate accuracy (use logits directly)
+        epoch_loss += total_loss.item()
+        epoch_class_loss += class_loss
+        epoch_reg_loss += reg_loss
+
+        # Calculate accuracy
         acc, _ = accuracy(logits[train_mask], batch_labels[train_mask], phase="train", epoch=epoch)
         epoch_train_acc += acc
-        epoch_loss += loss.detach().item()
-        n_iters += 1
 
-    return epoch_loss/n_iters, epoch_train_acc/n_iters, optimizer
+    epoch_train_acc /= (iter + 1)
+    return epoch_loss, epoch_class_loss, epoch_reg_loss, epoch_train_acc, optimizer
 
 def evaluate_network(model, device, data_loader, epoch, test_mask, node_labels, node_counts, subgraph_components, phase, compareSubgraph=False, subgraphs=None, label_prop_config=None):
     model.eval()
@@ -72,12 +75,12 @@ def evaluate_network(model, device, data_loader, epoch, test_mask, node_labels, 
             logits = model.forward(batch_graphs, subgraph_components) # size [num_subgraphs, num_classes]
             
             # Compute loss with components
-            loss = model.loss(logits[test_mask], batch_labels[test_mask], subgraph_components)
+            total_loss, class_loss, reg_loss = model.loss(logits[test_mask], batch_labels[test_mask], subgraph_components)
             
             # Calculate accuracy
             acc, _ = accuracy(logits[test_mask], batch_labels[test_mask], phase=phase, epoch=epoch)
             epoch_test_acc += acc
-            epoch_test_loss += loss.detach().item()
+            epoch_test_loss += total_loss.detach().item()
 
             if compareSubgraph:
                 return logits, batch_labels

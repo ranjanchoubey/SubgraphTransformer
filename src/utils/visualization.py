@@ -3,89 +3,80 @@ import networkx as nx
 import torch
 import os
 from matplotlib import pyplot as plt
-import shutil  # For removing directories
+import shutil
 
 
-import os
-import matplotlib.pyplot as plt
-
-def plot_train_val_curves(epoch_train_losses, epoch_val_losses, epoch_train_accs, epoch_val_accs):
-    """
-    Plot the training and validation loss and accuracy curves,
-    and annotate the final loss and accuracy values on the plots.
+def plot_train_val_curves(loss_data, output_path):
+    plt.figure(figsize=(15, 5))
     
-    Args:
-        epoch_train_losses (list): List of training losses for each epoch.
-        epoch_val_losses (list): List of validation losses for each epoch.
-        epoch_train_accs (list): List of training accuracies for each epoch.
-        epoch_val_accs (list): List of validation accuracies for each epoch.
-    """
-    # Ensure all tensors are on CPU and converted to numpy
-    def to_numpy(x):
-        if torch.is_tensor(x):
-            return x.detach().cpu().numpy()
-        elif isinstance(x, list):
-            return [to_numpy(i) for i in x]
-        return x
+    # Plot total losses
+    plt.subplot(1, 2, 1)
+    train_line, = plt.plot(loss_data['train_loss'], label='Train Loss', color='blue')
+    val_line, = plt.plot(loss_data['val_loss'], label='Validation Loss', color='red')
     
-    train_losses = to_numpy(epoch_train_losses)
-    val_losses = to_numpy(epoch_val_losses)
-    train_accs = to_numpy(epoch_train_accs)
-    val_accs = to_numpy(epoch_val_accs)
+    # Annotate min/max points
+    train_min_idx = np.argmin(loss_data['train_loss'])
+    train_min = loss_data['train_loss'][train_min_idx]
+    val_min_idx = np.argmin(loss_data['val_loss'])
+    val_min = loss_data['val_loss'][val_min_idx]
     
-    epochs = range(1, len(train_losses) + 1)
+    plt.annotate(f'Min: {train_min:.3f}', 
+                xy=(train_min_idx, train_min),
+                xytext=(10, 10), textcoords='offset points',
+                bbox=dict(boxstyle='round,pad=0.5', fc='yellow', alpha=0.5),
+                arrowprops=dict(arrowstyle='->', connectionstyle='arc3,rad=0'))
     
-    # Create a figure with two subplots.
-    plt.figure(figsize=(12, 5))
+    plt.annotate(f'Min: {val_min:.3f}', 
+                xy=(val_min_idx, val_min),
+                xytext=(10, -10), textcoords='offset points',
+                bbox=dict(boxstyle='round,pad=0.5', fc='yellow', alpha=0.5),
+                arrowprops=dict(arrowstyle='->', connectionstyle='arc3,rad=0'))
     
-    # Plot Loss Curves.
-    ax1 = plt.subplot(1, 2, 1)
-    ax1.plot(epochs, train_losses, 'b-', label='Train Loss')
-    ax1.plot(epochs, val_losses, 'r-', label='Validation Loss')
-    ax1.set_xlabel('Epochs')
-    ax1.set_ylabel('Loss')
-    ax1.set_title('Train vs. Validation Loss')
-    ax1.legend()
-    # Annotate the final loss values.
-    ax1.text(epochs[-1], train_losses[-1],
-             f'{train_losses[-1]:.4f}', fontsize=10, color='blue', ha='right', va='bottom')
-    ax1.text(epochs[-1], val_losses[-1],
-             f'{val_losses[-1]:.4f}', fontsize=10, color='red', ha='right', va='bottom')
+    plt.xlabel('Epochs')
+    plt.ylabel('Total Loss')
+    plt.legend()
+    plt.title('Training vs Validation Loss')
+    plt.grid(True, alpha=0.3)
     
-    # Plot Accuracy Curves.
-    ax2 = plt.subplot(1, 2, 2)
-    ax2.plot(epochs, train_accs, 'b-', label='Train Accuracy')
-    ax2.plot(epochs, val_accs, 'r-', label='Validation Accuracy')
-    ax2.set_xlabel('Epochs')
-    ax2.set_ylabel('Accuracy')
-    ax2.set_title('Train vs. Validation Accuracy')
-    ax2.legend()
-    # Annotate the final accuracy values (formatted as percentages).
-    ax2.text(epochs[-1], train_accs[-1],
-            f'{train_accs[-1]:.2f}%', fontsize=10, color='blue', ha='right', va='bottom')
-    ax2.text(epochs[-1], val_accs[-1],
-            f'{val_accs[-1]:.2f}%', fontsize=10, color='red', ha='right', va='bottom')
-
-
+    # Plot loss components
+    plt.subplot(1, 2, 2)
+    class_line, = plt.plot(loss_data['train_class_loss'], label='Classification Loss', color='green')
+    reg_line, = plt.plot(loss_data['train_reg_loss'], label='Regularization Term', color='purple')
     
+    # Annotate final values
+    final_class = loss_data['train_class_loss'][-1]
+    final_reg = loss_data['train_reg_loss'][-1]
+    
+    plt.annotate(f'Final: {final_class:.3f}', 
+                xy=(len(loss_data['train_class_loss'])-1, final_class),
+                xytext=(-10, 10), textcoords='offset points',
+                bbox=dict(boxstyle='round,pad=0.5', fc='lightgreen', alpha=0.5),
+                arrowprops=dict(arrowstyle='->', connectionstyle='arc3,rad=0'))
+    
+    plt.annotate(f'Final: {final_reg:.3f}', 
+                xy=(len(loss_data['train_reg_loss'])-1, final_reg),
+                xytext=(-10, -10), textcoords='offset points',
+                bbox=dict(boxstyle='round,pad=0.5', fc='plum', alpha=0.5),
+                arrowprops=dict(arrowstyle='->', connectionstyle='arc3,rad=0'))
+    
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss Components')
+    plt.legend()
+    plt.title('Classification vs Regularization Loss')
+    plt.grid(True, alpha=0.3)
+    
+    # Add overall title and adjust layout
+    plt.suptitle('Training Loss Analysis', fontsize=14, y=1.05)
     plt.tight_layout()
     
-    # Define the output directory and filename.
-    out_dir = os.path.abspath(os.path.join(os.getcwd(), 'out'))
-    os.makedirs(out_dir, exist_ok=True)
-    
-    # Use a constant filename to overwrite the same image each time.
-    plot_save_path = os.path.join(out_dir, 'train_val_curves.png')
-    
-    plt.savefig(plot_save_path, bbox_inches='tight', dpi=300)
-    plt.show()
+    # Save with high DPI for better quality
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    plt.close()
 
 
 
 
-import matplotlib.pyplot as plt
-import torch
-import numpy as np
+
 
 def visualize_node_predictions(node_logits, node_labels, node_counts, subgraphs):
     """
