@@ -4,14 +4,9 @@ def load_config(config_file='src/configs/default_config.json'):
     with open(config_file) as f:
         config = json.load(f)
     
-    # Add default label propagation config if not present
-    if 'label_propagation' not in config:
-        config['label_propagation'] = {
-            'enabled': True,
-            'min_component_size': 2,
-            'score_threshold': 0.5,
-            'top_k': 2
-        }
+    # Add use_partition  config if not present
+    if 'use_partition' not in config:
+        config['use_partition'] = True
     
     return config
 

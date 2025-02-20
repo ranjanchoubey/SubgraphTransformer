@@ -68,19 +68,26 @@ class GraphTransformerNet(nn.Module):
 
 
     def propagate_labels(self, subgraph_logits, subgraph_components):
-        predictions = []
-
+        all_predictions = []
+        # Assume we process subgraphs in the same order as they were created.
         for i in range(len(subgraph_components)):
-
-            print("\n list_weight : ",self.list_weight[i])
-
-            for j in range(len(subgraph_components[i])):
-                comp_size = int(subgraph_components[i][j])
+            # For subgraph i, create an empty tensor for node predictions.
+            # First, determine the number of nodes in this subgraph by summing component sizes.
+            total_nodes = sum(size for (_, size) in subgraph_components[i])
+            num_classes = subgraph_logits.size(1)
+            sub_pred = torch.empty((total_nodes, num_classes), device=self.device)
+            
+            # For each component in this subgraph, assign the prediction to the correct indices.
+            for j, (comp_indices, comp_size) in enumerate(subgraph_components[i]):
                 comp_pred = subgraph_logits[i] * self.list_weight[i][j]
-                node_preds = comp_pred.repeat(comp_size, 1)
-                predictions.append(node_preds)
-
-        result = torch.cat(predictions, dim=0) # size [total_nodes, num_classes]
+                # Here, comp_pred is the prediction for the whole subgraph (scaled)
+                # Fill in comp_pred at the indices corresponding to this component.
+                for idx in comp_indices:
+                    sub_pred[idx] = comp_pred
+            all_predictions.append(sub_pred)
+        
+        # Concatenate predictions for all subgraphs; they should now be in the correct order.
+        result = torch.cat(all_predictions, dim=0)
         return result
 
 
@@ -88,23 +95,15 @@ class GraphTransformerNet(nn.Module):
         reg_loss = 0.0
 
         for i in range(self.num_subgraph):
-            # Convert to tensor and normalize
-            components_tensor = torch.tensor(subgraph_components[i], 
-                                          dtype=torch.float32, 
-                                          device=self.device)
+            # Extract the component sizes from the list of tuples
+            component_sizes = [size for (_, size) in subgraph_components[i]]
+            components_tensor = torch.tensor(component_sizes, 
+                                            dtype=torch.float32, 
+                                            device=self.device)
             # Compute dot product with weights
             product = torch.dot(self.list_weight[i], components_tensor)
-            
-            # Use quadratic penalty for better stability
-            reg_loss += product - 1.0
-            
-            # # Optional: Add debugging information
-            # if self.training:
-            #     print(f"\nSubgraph {i} statistics:")
-            #     print(f"Raw components: {components_tensor}")
-            #     print(f"Weights: {self.list_weight[i]}")
-            #     print(f"Product: {product:.4f}")
-            #     print(f"Reg loss term: {torch.square(product - 1.0):.4f}")
+            # Use quadratic penalty for stability
+            reg_loss += (product - 1.0) ** 2
 
         return reg_loss
     
@@ -123,6 +122,7 @@ class GraphTransformerNet(nn.Module):
         reg_loss = self.compute_reg_loss(subgraph_components)
         reg_term = self.reg_lambda * reg_loss
         total_loss = base_loss + reg_term
+        # print(f"Base loss: {base_loss.item():.4f}, Reg loss: {reg_term.item():.4f}")
         
         return total_loss, base_loss.item(), reg_term.item()
 

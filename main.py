@@ -72,12 +72,15 @@ def main():
     
     # Step 3: Partition the graph and analyze components
     print("\n" + "="*50,"\n Step 3: Partitioning Graph and Analyzing Components","\n"+"="*50)
-    subgraphs = partition_graph(graph, num_parts=config['net_params']['num_subgraph'])
+    if config.get('use_partition', True):
+        subgraphs = partition_graph(graph, num_parts=config['net_params']['num_subgraph'])
+
+
     
     # Store component information during preprocessing[[9,6],[5,4,3],...] - varying number of components per
     subgraph_components = []
     for i, subgraph in enumerate(subgraphs):
-        component_info = get_component_info(subgraph)
+        component_info = get_component_info(subgraph)   # now returns tuples (indices, size)
         subgraph_components.append(component_info)
         # print(f"Subgraph {i}: {len(component_info)} components")
     print("subgraph_components",subgraph_components)    
