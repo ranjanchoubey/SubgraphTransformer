@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 from torch import optim
 from src.models.networks.load_net import gnn_model
 from src.training.train_evaluate import collate_graphs, evaluate_network, train_epoch
-from src.utils.visualization import plot_train_val_curves, plotting_train_val_curves, visualize_node_predictions, visualize_subgraph
+from src.utils.visualization import plot_train_val_curves,visualize_subgraph
 
 
 def train_val_pipeline(MODEL_NAME, dataset, params, net_params, dirs, 
@@ -170,25 +170,19 @@ def train_val_pipeline(MODEL_NAME, dataset, params, net_params, dirs,
         'train_reg_loss': train_reg_losses
     }
     # Use the log directory for saving the plot
-    plot_path = os.path.join('train_summary.png')
+    plot_path = os.path.join('out/train_summary.png')
     plot_train_val_curves(loss_data, plot_path)
     
     # visualize subgraph comparison
     print("\nPlotting Subgraph ....\n")
     
-    # Get label propagation config safely with defaults
-    label_prop_config = params.get('label_propagation')
 
     print("\nprediction...")
     node_logits, node_labels = evaluate_network(
         model, device, test_loader, epoch, test_mask, 
         node_labels, node_counts,subgraph_components, phase="test", 
         compareSubgraph=True,
-        subgraphs=subgraphs,
-        label_prop_config=label_prop_config  # Pass the config
+        subgraphs=subgraphs
     )
-        # Plot training and validation curves.
-    visualize_node_predictions(node_logits, node_labels, node_counts, subgraphs)
 
-    plotting_train_val_curves(epoch_train_losses, epoch_val_losses, epoch_train_accs, epoch_val_accs)
     visualize_subgraph(node_logits, node_labels,node_counts,subgraphs)

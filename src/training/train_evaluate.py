@@ -61,7 +61,7 @@ def train_epoch(model, optimizer, device, data_loader, epoch, train_mask, node_l
     epoch_train_acc /= (iter + 1)
     return epoch_loss, epoch_class_loss, epoch_reg_loss, epoch_train_acc, optimizer
 
-def evaluate_network(model, device, data_loader, epoch, test_mask, node_labels, node_counts, subgraph_components, phase, compareSubgraph=False, subgraphs=None, label_prop_config=None):
+def evaluate_network(model, device, data_loader, epoch, test_mask, node_labels, node_counts, subgraph_components, phase, compareSubgraph=False, subgraphs=None):
     model.eval()
     epoch_test_loss = 0
     epoch_test_acc = 0
