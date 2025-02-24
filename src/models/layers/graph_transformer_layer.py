@@ -52,43 +52,44 @@ class MultiHeadAttentionLayer(nn.Module):
             self.Q = nn.Linear(in_dim, out_dim * num_heads, bias=False)
             self.K = nn.Linear(in_dim, out_dim * num_heads, bias=False)
             self.V = nn.Linear(in_dim, out_dim * num_heads, bias=False)
-            
+                
     def forward(self, g, h):
+        # h: [K, d_h]
+        Q = self.Q(h)  # [K, M*d_k]
+        K = self.K(h)
+        V = self.V(h)
+        K_tokens = h.shape[0]  # number of subgraphs = K
+        d_k = self.out_dim      # assume self.out_dim is d_k
 
-        Q = self.Q(h)  # [num_nodes, out_dim * num_heads]
-        K = self.K(h)  # [num_nodes, out_dim * num_heads]
-        V = self.V(h)  # [num_nodes, out_dim * num_heads]
-        
-        # Reshaping into [num_nodes, num_heads, feat_dim] to 
-        # get projections for multi-head attention
-        Q = Q.view(-1, self.num_heads, self.out_dim)
-        K = K.view(-1, self.num_heads, self.out_dim)
-        V = V.view(-1, self.num_heads, self.out_dim)
-        
-        # Compute attention scores between subgraphs
-        attention_scores = torch.matmul(Q, K.transpose(-2, -1)) / np.sqrt(self.out_dim)
-        
-        # print("\n=== Attention Layer Statistics ===")
-        # print(f"Number of subgraphs: {Q.shape[0]}")
-        # print(f"Number of attention heads: {self.num_heads}")
-        # print(f"Features per head: {self.out_dim}")
-        # print(f"Direct subgraph-to-subgraph attention: {Q.shape[0]}x{K.shape[0]} matrix per head")
-        # print(f"Total attention elements: {Q.shape[0] * K.shape[0] * self.num_heads}")
-        # print("================================")
-        
-        # Apply softmax
-        attention_probs = F.softmax(attention_scores, dim=-1)
-        
-        # Compute weighted sum
-        # [num_nodes, num_heads, out_dim]
-        out = torch.matmul(attention_probs, V)
-        # print(f"Output shape before reshape: {out.shape}")
-        
-        # Reshape back to [num_nodes, num_heads * out_dim]
-        out = out.view(-1, self.num_heads * self.out_dim)
-        # print(f"Final output shape: {out.shape}")
-        
+        # Reshape to [K, M, d_k]
+        Q = Q.view(K_tokens, self.num_heads, d_k)
+        K = K.view(K_tokens, self.num_heads, d_k)
+        V = V.view(K_tokens, self.num_heads, d_k)
+
+        # Permute to [M, K, d_k] so that the attention is computed across subgraphs
+        Q = Q.transpose(0, 1)  # [M, K, d_k]
+        K = K.transpose(0, 1)  # [M, K, d_k]
+        V = V.transpose(0, 1)  # [M, K, d_k]
+
+        # Compute attention scores: shape [M, K, K]
+        scores = torch.matmul(Q, K.transpose(-2, -1)) / np.sqrt(d_k)
+        attention_probs = F.softmax(scores, dim=-1)  # [M, K, K]
+
+        # Aggregate heads to form a final KxK attention matrix (for analysis or downstream use)
+        effective_attention = attention_probs.mean(dim=0)  # [K, K]
+
+        # Compute head outputs: shape [M, K, d_k]
+        out_heads = torch.matmul(attention_probs, V)
+        # Option: concatenate heads
+        out = out_heads.transpose(0, 1).reshape(K_tokens, self.num_heads * d_k)
+        # Alternatively, average over heads:
+        # out = out_heads.mean(dim=0)  # [K, d_k]
+
+        # Optionally, you can store effective_attention for later analysis:
+        self.last_attention = effective_attention
+
         return out
+
 
 '''Graph Transformer Layer: This layer combines multi-head attention with additional processing steps
  like feed-forward networks,layer normalization, and batch normalization.'''

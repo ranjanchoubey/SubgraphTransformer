@@ -103,7 +103,7 @@ class GraphTransformerNet(nn.Module):
             # Compute dot product with weights
             product = torch.dot(self.list_weight[i], components_tensor)
             # Use quadratic penalty for stability
-            reg_loss += (product - 1.0) ** 2
+            reg_loss += (product - 1.0)
 
         return reg_loss
     
