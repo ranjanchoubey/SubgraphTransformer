@@ -33,10 +33,13 @@
         "lap_pos_enc": false,
         "pos_enc_dim": 8,
         "wl_pos_enc": false,
-        "full_graph": true
+        "full_graph": true,
+
+        "num_subgraph" :500,
+        "reg_lambda": 0.0009
     },
     "data": {
-        "num_parts": 500,
+
         "num_classes": 70
     },
     "gcn": {

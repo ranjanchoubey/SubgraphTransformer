@@ -20,6 +20,7 @@ from src.data.embedding import mean_pooling, compute_laplacian_positional_embedd
 from src.utils.supergraph import create_feature_dataset
 from src.models.model_definition import view_model_param
 from src.training.training_pipeline import train_val_pipeline
+from src.utils.component_analysis import get_component_info
 
 
 
@@ -49,6 +50,8 @@ def main():
     net_params['in_dim'] = config['gcn']['output_dim']  # Example: 16 (from GCN output)
     net_params['n_classes'] = config['data']['num_classes']  # For example, 7 in cora small dataset
 
+    
+
     # Setup output directories for logs, checkpoints, results, and configs.
     time_str = time.strftime('%Hh%Mm%Ss_on_%b_%d_%Y')
     root_log_dir = os.path.join(out_dir, 'logs', f"{MODEL_NAME}_{DATASET_NAME}_GPU{config['gpu']['id']}_{time_str}")
@@ -67,10 +70,22 @@ def main():
     print("✓ Dataset loaded successfully")
     
     
-    # Step 3: Partition the graph into subgraphs.
-    print("\n" + "="*50,"\n Step 3: Partitioning Graph","\n"+"="*50)
-    subgraphs = partition_graph(graph, num_parts=config['data']['num_parts'])
-    print(f"✓ Graph partitioned into {config['data']['num_parts']} subgraphs")
+    # Step 3: Partition the graph and analyze components
+    print("\n" + "="*50,"\n Step 3: Partitioning Graph and Analyzing Components","\n"+"="*50)
+    if config.get('use_partition', True):
+        subgraphs = partition_graph(graph, num_parts=config['net_params']['num_subgraph'])
+
+
+    
+    # Store component information during preprocessing[[9,6],[5,4,3],...] - varying number of components per
+    subgraph_components = []
+    for i, subgraph in enumerate(subgraphs):
+        component_info = get_component_info(subgraph)   # now returns tuples (indices, size)
+        subgraph_components.append(component_info)
+        # print(f"Subgraph {i}: {len(component_info)} components")
+    print("subgraph_components",subgraph_components)    
+
+    print(f"✓ Graph partitioned into {config['net_params']['num_subgraph']} subgraphs with component analysis")
     
     # Step 4: Compute embeddings, node label and mask for each subgraph.
     print("\n" + "="*50,"\n Step 4: Computing Embeddings","\n"+"="*50)
@@ -115,11 +130,11 @@ def main():
     combined_embedding = subgraph_embeddings + lpe_embeddings
     dataset = create_feature_dataset(combined_embedding)
     
-    net_params['total_param'] = view_model_param(MODEL_NAME, net_params)
-    train_val_pipeline(MODEL_NAME, dataset, params, net_params, dirs, train_mask,val_mask,test_mask, node_labels, node_counts, subgraphs)
+    net_params['total_param'] = view_model_param(MODEL_NAME, net_params,subgraph_components)
+    train_val_pipeline(MODEL_NAME, dataset, params, net_params, dirs, train_mask,val_mask,test_mask, node_labels, node_counts, subgraphs,subgraph_components)  # Added subgraph_components
 
 if __name__ == "__main__":
     main()
-    
+
 
 

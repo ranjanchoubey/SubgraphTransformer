@@ -3,6 +3,11 @@ import json
 def load_config(config_file='src/configs/default_config.json'):
     with open(config_file) as f:
         config = json.load(f)
+    
+    # Add use_partition  config if not present
+    if 'use_partition' not in config:
+        config['use_partition'] = True
+    
     return config
 
 def update_config_with_args(config, args):
