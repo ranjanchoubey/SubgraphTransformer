@@ -25,6 +25,8 @@ python main.py  --dataset Citeseer   --config 'configs/citeseer.json' --gpu_id 0
 python main.py  --dataset Pubmed   --config 'configs/pubmed.json' --gpu_id 0
 
 
+# Experiment Tracker link
+https://docs.google.com/spreadsheets/d/1JUpCwrU6YX0tHYqXLDpRhz7GeOKgkvfStAXD7AqgojE/edit?gid=0#gid=0
 
 
 # Additional Scripts 

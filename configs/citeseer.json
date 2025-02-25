@@ -9,23 +9,19 @@
   
   "params": {
     "seed": 41,
-    "epochs": 200,
+    "epochs": 600,
     "batch_size": 128,
-    "init_lr": 0.0007,
+    "init_lr": 0.01,
     "lr_reduce_factor": 0.5,
     "lr_schedule_patience": 15,
     "min_lr": 1e-6,
     "weight_decay": 0.0,
     "print_epoch_interval": 5,
-    "max_time": 24,
-    "propagation": {
-      "num_labels": 1, 
-      "method": "connectivity"
-    }
+    "max_time": 24
   },
   
   "net_params": {
-    "L": 10,
+    "L": 5,
     "n_heads": 16,
     "hidden_dim": 64,
     "out_dim": 64,
@@ -40,11 +36,13 @@
     "lap_pos_enc": false,
     "pos_enc_dim": 8,
     "wl_pos_enc": false,
-    "full_graph": false
+    "full_graph": false,
+
+    "num_subgraph" :80,
+    "reg_lambda": 0.0009
   },
   
   "data": {
-    "num_parts": 80, 
     "num_classes": 6 
   },
   
