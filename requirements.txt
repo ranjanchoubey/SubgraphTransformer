@@ -12,3 +12,5 @@ tabulate
 #OS : Linux
 #pip install  dgl -f https://data.dgl.ai/wheels/torch-2.4/cu118/repo.html
 
+# No need to install pytorch separately , dgl will do this , just run above command to install dgl
+
