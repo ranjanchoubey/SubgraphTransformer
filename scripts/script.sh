@@ -22,8 +22,11 @@ python main.py  --dataset CoraFull   --config 'configs/cora_full.json' --gpu_id 
 # for citeseer dataset
 python main.py  --dataset Citeseer   --config 'configs/citeseer.json' --gpu_id 0
 
+# for Pubmed dataset
 python main.py  --dataset Pubmed   --config 'configs/pubmed.json' --gpu_id 0
 
+# for Chameleon dataset
+python main.py --dataset Chameleon --config 'configs/chameleon.json' --gpu_id 0
 
 # Experiment Tracker link
 https://docs.google.com/spreadsheets/d/1JUpCwrU6YX0tHYqXLDpRhz7GeOKgkvfStAXD7AqgojE/edit?gid=0#gid=0
