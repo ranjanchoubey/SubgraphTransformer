@@ -21,7 +21,7 @@ def train_val_pipeline_hetero(MODEL_NAME, dataset, params, net_params, dirs,
     start0 = time.time()
     per_epoch_time = []
     
-    DATASET_NAME = 'Cora'
+    DATASET_NAME = net_params['dataset']
 
     
     trainset = dataset
@@ -144,11 +144,12 @@ def train_val_pipeline_hetero(MODEL_NAME, dataset, params, net_params, dirs,
 
     _, test_acc = evaluate_network(model, device, test_loader, epoch,test_mask, node_labels,node_counts,subgraph_components,phase="test")
     _, train_acc = evaluate_network(model, device, train_loader, epoch,train_mask, node_labels,node_counts,subgraph_components,phase="train")
-    # print("Test Accuracy: {:.4f}".format(test_acc))
-    # print("Train Accuracy: {:.4f}".format(train_acc))
-    # print("Convergence Time (Epochs): {:.4f}".format(epoch))
-    # print("TOTAL TIME TAKEN: {:.4f}s".format(time.time()-start0))
-    # print("AVG TIME PER EPOCH: {:.4f}s".format(np.mean(per_epoch_time)))
+    
+    print("Test Accuracy: {:.4f}".format(test_acc))
+    print("Train Accuracy: {:.4f}".format(train_acc))
+    print("Convergence Time (Epochs): {:.4f}".format(epoch))
+    print("TOTAL TIME TAKEN: {:.4f}s".format(time.time()-start0))
+    print("AVG TIME PER EPOCH: {:.4f}s".format(np.mean(per_epoch_time)))
 
     writer.close()
 
@@ -161,6 +162,33 @@ def train_val_pipeline_hetero(MODEL_NAME, dataset, params, net_params, dirs,
     Convergence Time (Epochs): {:.4f}\nTotal Time Taken: {:.4f} hrs\nAverage Time Per Epoch: {:.4f} s\n\n\n"""\
           .format(DATASET_NAME, MODEL_NAME, params, net_params, model, net_params['total_param'],
                   test_acc, train_acc, epoch, (time.time()-start0)/3600, np.mean(per_epoch_time)))
+        
+    # # Plot training and validation curves.
+    # loss_data = {
+    #     'train_loss': epoch_train_losses,
+    #     'val_loss': epoch_val_losses,
+    #     'train_class_loss': train_class_losses,
+    #     'train_reg_loss': train_reg_losses
+    # }
+    # # Use the log directory for saving the plot
+    # os.makedirs('out/text_result', exist_ok=True)
+    # plot_path = f'out/text_result/{DATASET_NAME}-training.png'
+
+    # plot_train_val_curves(loss_data, plot_path)
+
+    # # visualize subgraph comparison
+    # print("\nPlotting Subgraph ....\n")
+    
+
+    # print("\nprediction...")
+    # node_logits, node_labels = evaluate_network(
+    #     model, device, test_loader, epoch, test_mask, 
+    #     node_labels, node_counts,subgraph_components, phase="test", 
+    #     compareSubgraph=True,
+    #     subgraphs=subgraphs
+    # )
+
+    # visualize_subgraph(node_logits, node_labels,node_counts,subgraphs)
 
     return train_acc, test_acc
     

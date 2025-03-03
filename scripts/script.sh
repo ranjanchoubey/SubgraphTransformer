@@ -26,7 +26,13 @@ python main.py  --dataset Citeseer   --config 'configs/citeseer.json' --gpu_id 0
 python main.py  --dataset Pubmed   --config 'configs/pubmed.json' --gpu_id 0
 
 # for Chameleon dataset
-python main-hetero.py --dataset Chameleon --config 'configs/chameleon.json' --gpu_id 0
+python main-hetero.py --dataset Chameleon --config 'configs/chameleon.json' --gpu_id 1
+
+# for Squirrel dataset
+python main-hetero.py --dataset Squirrel --config 'configs/squirrel.json' --gpu_id 0
+
+# for Actor dataset
+python main-hetero.py --dataset Actor --config 'configs/actor.json' --gpu_id 0
 
 # Experiment Tracker link
 https://docs.google.com/spreadsheets/d/1JUpCwrU6YX0tHYqXLDpRhz7GeOKgkvfStAXD7AqgojE/edit?gid=0#gid=0

@@ -44,6 +44,7 @@ def main():
     print(f"\n Dataset: {DATASET_NAME}\n")
     # Setup network parameters.
     net_params = config['net_params']
+    net_params['dataset'] = DATASET_NAME
     net_params['device'] = device
     net_params['gpu_id'] = config['gpu']['id']
     net_params['batch_size'] = params['batch_size']
@@ -132,15 +133,29 @@ def main():
         dataset = create_feature_dataset(combined_embedding)
         
         net_params['total_param'] = view_model_param(MODEL_NAME, net_params,subgraph_components)
-        train_acc, train_acc = train_val_pipeline_hetero(MODEL_NAME, dataset, params, net_params, dirs, train_mask,val_mask,test_mask, node_labels, node_counts, subgraphs,subgraph_components)  # Added subgraph_components
-        
+        train_acc, test_acc = train_val_pipeline_hetero(MODEL_NAME, dataset, params, net_params, dirs, train_mask,val_mask,test_mask, node_labels, node_counts, subgraphs,subgraph_components)  # Added subgraph_components
+        print(f"Training Accuracy: {train_acc:.2f}")
+        print(f"Testing Accuracy: {test_acc:.2f}")
         all_train_acc.append(train_acc)
-        all_test_acc.append(train_acc)
+        all_test_acc.append(test_acc)
     print(f"✓ Training completed for {config['data']['num_folds']} folds")
     print(f"Average Training Accuracy: {np.mean(all_train_acc):.2f}")
     print(f"Average Testing Accuracy: {np.mean(all_test_acc):.2f}")
     print("Standard Deviation of Testing Accuracy:",np.std(all_test_acc))
     print(f"✓ Experiment completed successfully")
+
+
+    # store the results in a text file at location out/text_result/DATASET_NAME.txt 
+    os.makedirs('out/text_result', exist_ok=True)
+    write_file_name = f'out/text_result/{DATASET_NAME}.txt'
+    print(f"Writing results to {write_file_name}")
+    with open(write_file_name, 'w') as f:
+        f.write(f"Average Training Accuracy: {np.mean(all_train_acc):.2f}\n")
+        f.write(f"Average Testing Accuracy: {np.mean(all_test_acc):.2f}\n")
+        f.write(f"Standard Deviation of Testing Accuracy: {np.std(all_test_acc)}\n")
+
+
+
 if __name__ == "__main__":
     main()
 

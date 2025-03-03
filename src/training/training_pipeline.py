@@ -21,7 +21,7 @@ def train_val_pipeline(MODEL_NAME, dataset, params, net_params, dirs,
     start0 = time.time()
     per_epoch_time = []
     
-    DATASET_NAME = 'Cora'
+    DATASET_NAME = net_params['dataset']
 
     
     trainset = dataset
