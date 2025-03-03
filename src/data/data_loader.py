@@ -2,7 +2,7 @@ import dgl
 import os
 import torch
 import numpy as np
-from dgl.data import CiteseerGraphDataset, PubmedGraphDataset
+from dgl.data import CiteseerGraphDataset, PubmedGraphDataset,ChameleonDataset
 
 from src.data.train_test_splitting import create_mask_splits
 
@@ -82,6 +82,9 @@ def LoadData(DATASET_NAME):
         print(f"Node feature dim: {graph.ndata['feat'].shape[1]}")
         
         return graph
-    
+    elif DATASET_NAME == 'Chameleon':
+        graph = ChameleonDataset(raw_dir=dataset_dir)
+        dataset = graph[0]
+        return dataset
     else:
         raise ValueError(f"Unrecognized dataset: {DATASET_NAME}")

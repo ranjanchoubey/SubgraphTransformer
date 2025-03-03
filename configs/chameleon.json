@@ -47,7 +47,7 @@
   "data":
   {
     "num_classes": 5,
-    "num_splits" : 10
+    "num_folds" : 10
   },
   
   "gcn":
