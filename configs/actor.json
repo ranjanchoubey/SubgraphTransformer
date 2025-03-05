@@ -1,15 +1,16 @@
 {
-  "gpu": {
-    "use": true,
-    "id": 0
+    "gpu": {
+      "use": true,
+      "id": 0
   },
-  "model": "GraphTransformer",
-  "dataset": "Pubmed",
-  "out_dir": "out/",
   
+  "model": "GraphTransformer",
+  "dataset": "Actor",
+  "out_dir": "out/",
+
   "params": {
     "seed": 41,
-    "epochs": 600,
+    "epochs": 1000,
     "batch_size": 128,
     "init_lr": 0.0007,
     "lr_reduce_factor": 0.5,
@@ -37,23 +38,23 @@
     "pos_enc_dim": 8,
     "wl_pos_enc": false,
     "full_graph": false,
-    "num_subgraph" :100,
-    "reg_lambda": 0.0009
-    "full_graph": false,
-
-    "num_subgraph" :100,
-    "reg_lambda": 0.0009
+  
+    "num_subgraph" :220,
+    "reg_lambda": 0.0001
+  
   },
   
-  "data": { 
-  "data": {
-
-    "num_classes": 3  
+  "data":
+  {
+    "num_classes": 5,
+    "num_folds" : 10
   },
   
-  "gcn": {
-    "input_dim": 500,  
-    "hidden_dim": 256,
-    "output_dim": 32
+  "gcn":
+  {
+    "input_dim": 932,
+    "hidden_dim":256,
+    "output_dim":32
   }
-}
+  
+  }

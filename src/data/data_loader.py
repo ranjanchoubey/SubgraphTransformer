@@ -2,8 +2,7 @@ import dgl
 import os
 import torch
 import numpy as np
-from dgl.data import CiteseerGraphDataset, PubmedGraphDataset
-
+from dgl.data import CiteseerGraphDataset, PubmedGraphDataset,ChameleonDataset,SquirrelDataset,ActorDataset
 from src.data.train_test_splitting import create_mask_splits
 
 """
@@ -82,6 +81,32 @@ def LoadData(DATASET_NAME):
         print(f"Node feature dim: {graph.ndata['feat'].shape[1]}")
         
         return graph
+    
+    elif DATASET_NAME == 'Chameleon':
+        graph = ChameleonDataset(raw_dir=dataset_dir) 
+        dataset = graph[0]
+        
+        # Convert to undirected graph
+        dataset = dgl.to_bidirected(dataset, copy_ndata=True)
+        return dataset
+    
+    elif DATASET_NAME == 'Squirrel':
+        graph = SquirrelDataset(raw_dir=dataset_dir) 
+        dataset = graph[0]
+        
+        # Convert to undirected graph
+        dataset = dgl.to_bidirected(dataset, copy_ndata=True)
+        return dataset
+    
+    elif DATASET_NAME == 'Actor':
+        graph = ActorDataset(raw_dir=dataset_dir) 
+        dataset = graph[0]
+        
+        # Convert to undirected graph
+        dataset = dgl.to_bidirected(dataset, copy_ndata=True)
+        return dataset
+
+
     
     else:
         raise ValueError(f"Unrecognized dataset: {DATASET_NAME}")
