@@ -10,8 +10,9 @@ python3 -m venv venv
 # activate venv
 source venv/bin/activate
 
-# install dependencies
-pip install -e ".[dev]"
+# install dependency
+pip install -r requirements.txt
+
 
 # Run main.py file (entry point of code small dataset)
 python main.py  --dataset CoraSmall   --config 'configs/cora_small.json' --gpu_id 0

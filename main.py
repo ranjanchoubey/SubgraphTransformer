@@ -43,8 +43,8 @@ def main():
     DATASET_NAME = config['dataset']
     print(f"\n Dataset: {DATASET_NAME}\n")
     # Setup network parameters.
-    net_params['dataset'] = DATASET_NAME
     net_params = config['net_params']
+    net_params['dataset'] = DATASET_NAME
     net_params['device'] = device
     net_params['gpu_id'] = config['gpu']['id']
     net_params['batch_size'] = params['batch_size']
