@@ -1,0 +1,29 @@
+{
+    "gpu": {
+      "use": true,
+      "id": 0
+    },
+    "model": "GCNBaseline",
+    "dataset": "CoraSmall",
+    "out_dir": "out/",
+    "params": {
+      "seed": 41,
+      "epochs": 200,
+      "batch_size": 1,
+      "init_lr": 0.01,
+      "lr_reduce_factor": 0.5,
+      "lr_schedule_patience": 15,
+      "min_lr": 1e-6,
+      "weight_decay": 0.0005,
+      "print_epoch_interval": 5,
+      "max_time": 24
+    },
+    "net_params": {
+      "hidden_dim": 64,
+      "dropout": 0.5
+    },
+    "data": {
+      "num_classes": 7
+    }
+  }
+  

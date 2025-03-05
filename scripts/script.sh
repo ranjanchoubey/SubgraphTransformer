@@ -35,6 +35,9 @@ python main-hetero.py --dataset Squirrel --config 'configs/squirrel.json' --gpu_
 # for Actor dataset
 python main-hetero.py --dataset Actor --config 'configs/actor.json' --gpu_id 0
 
+# Base line GCN 
+python main.py --dataset CoraSmall --config configs/cora_small_baseline.json
+
 # Experiment Tracker link
 https://docs.google.com/spreadsheets/d/1JUpCwrU6YX0tHYqXLDpRhz7GeOKgkvfStAXD7AqgojE/edit?gid=0#gid=0
 
